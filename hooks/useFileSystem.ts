@@ -61,7 +61,21 @@ export const initialFiles: FileNode[] = [
   },
    {
     name: 'plugins',
-    children: []
+    children: [
+      {
+        name: 'Git Tools',
+        children: [
+          {
+            name: 'plugin.json',
+            content: '{\n  "name": "Git Tools",\n  "version": "0.1.0",\n  "description": "Provides AI tools for common Git operations like status, committing, branching, and pushing/pulling.",\n  "author": "QUONX Labs",\n  "main": "index.js"\n}'
+          },
+          {
+            name: 'index.js',
+            content: "quonx.registerTool('gitStatus', 'Checks the current git status of the project.', (args) => {});\nquonx.registerTool('gitCommit', 'Commits all current changes. args: { message: string }', (args) => {});\nquonx.registerTool('gitBranch', 'Creates a new branch. args: { name: string }', (args) => {});\nquonx.registerTool('gitCheckout', 'Switches to a different branch. args: { name: string }', (args) => {});\nquonx.registerTool('gitLog', 'Shows the commit history for the current branch.', (args) => {});\nquonx.registerTool('gitPush', 'Pushes committed changes to the remote repository.', (args) => {});\nquonx.registerTool('gitPull', 'Pulls changes from the remote repository.', (args) => {});"
+          }
+        ]
+      }
+    ]
   },
   { name: '.gitignore', content: 'node_modules\nmodels' },
   { name: 'package.json', content: '{ "name": "my-app" }' },

@@ -10,22 +10,15 @@
   },
   "dependencies": {
     "react-dom": "^19.1.1",
-    "react": "^19.1.1",
     "@google/genai": "^1.17.0",
+    "react": "^19.1.1",
     "@codemirror/state": "^6.4.1",
     "@codemirror/view": "^6.29.0",
-    "@codemirror/commands": "^6.6.0",
+    "@codemirror/language": "^6.10.2",
     "@codemirror/lang-javascript": "^6.2.2",
-    "@codemirror/theme-one-dark": "^6.1.2",
-    "re-resizable": "^6.11.2",
-    "react-split": "^2.0.14",
-    "@tauri-apps/api": "^2.0.0",
-    "@tauri-apps/plugin-fs": "^2.0.0",
-    "@tauri-apps/plugin-shell": "^2.0.0",
-    "@tauri-apps/plugin-process": "^2.0.0",
-    "@tauri-apps/plugin-http": "^2.0.0",
-    "@tauri-apps/plugin-dialog": "^2.0.0",
-    "@tauri-apps/plugin-notification": "^2.0.0"
+    "@codemirror/lint": "^6.8.1",
+    "lezer-common": "^1.2.2",
+    "@codemirror/commands": "^6.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

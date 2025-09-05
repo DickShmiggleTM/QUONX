@@ -1,207 +1,168 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { EditorState, Compartment, RangeSet, Range } from '@codemirror/state';
-// FIX: Add Decoration to imports to create line highlights.
-import { EditorView, keymap, GutterMarker, gutter, lineNumbers, highlightSpecialChars, drawSelection, highlightActiveLine, highlightActiveLineGutter, Decoration } from '@codemirror/view';
-import { defaultKeymap, history, undo, redo } from '@codemirror/commands';
+// FIX: Import `useCallback` from react to resolve "Cannot find name" error.
+import React, { useEffect, useRef, useCallback } from 'react';
+import { EditorState, Compartment } from '@codemirror/state';
+import { EditorView, keymap, lineNumbers, gutter } from '@codemirror/view';
+import { defaultKeymap } from '@codemirror/commands';
 import { javascript } from '@codemirror/lang-javascript';
-import { oneDark } from '@codemirror/theme-one-dark';
-import { UndoIcon, RedoIcon, RefactorIcon, TestIcon, ExtractIcon } from './icons.tsx';
+import { linter, lintGutter, type LintSource, type Diagnostic } from '@codemirror/lint';
+import { LintingError } from '../types.ts';
+
+// CodeMirror theme to match the retro aesthetic
+const retroTheme = EditorView.theme({
+  "&": {
+    color: "#0f0",
+    backgroundColor: "transparent",
+    height: "100%",
+    fontSize: '14px',
+  },
+  ".cm-content": {
+    caretColor: "#0f0",
+    fontFamily: "'Courier New', monospace",
+  },
+  "&.cm-focused .cm-cursor": {
+    borderLeftColor: "#0f0",
+    animation: "cm-blink 1.2s steps(2, start) infinite"
+  },
+  "&.cm-focused .cm-selectionBackground, ::selection": {
+    backgroundColor: "#00ff0033",
+  },
+  ".cm-gutters": {
+    backgroundColor: "#00000050",
+    color: "#00ff0080",
+    border: "none",
+  },
+  // Custom wavy underlines for lint errors/warnings
+  ".cm-lintRange-error": {
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' height='3' width='6'%3E%3Cpath d='M0 2.5 L2 0 L4 2.5 L6 0' stroke='%23ff3333' fill='none' stroke-width='1'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'repeat-x',
+    backgroundPosition: 'bottom left',
+    paddingBottom: '1px',
+  },
+  ".cm-lintRange-warning": {
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' height='3' width='6'%3E%3Cpath d='M0 2.5 L2 0 L4 2.5 L6 0' stroke='%23ffff33' fill='none' stroke-width='1'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'repeat-x',
+    backgroundPosition: 'bottom left',
+    paddingBottom: '1px',
+  },
+  ".cm-tooltip-lint": {
+    backgroundColor: '#1a1a1a',
+    border: '1px solid #0f0',
+  }
+}, {dark: true});
+
 
 interface EditorProps {
-  activeFile: string | null;
   content: string;
   onContentChange: (newContent: string) => void;
-  breakpoints: Set<number>;
-  onToggleBreakpoint: (lineNumber: number) => void;
-  activeDebugLine: number | null;
-  onCodeAction: (action: 'refactor' | 'test' | 'extract', selection: string) => void;
+  activeFile: string | null;
+  lintErrors: LintingError[];
 }
 
-interface ContextMenuState {
-    x: number;
-    y: number;
-    selection: string;
-}
-
-const breakpointMarker = new class extends GutterMarker {
-  toDOM() { return document.createTextNode("🔴"); }
-}();
-
-const Editor: React.FC<EditorProps> = ({ activeFile, content, onContentChange, breakpoints, onToggleBreakpoint, activeDebugLine, onCodeAction }) => {
+const Editor: React.FC<EditorProps> = ({ content, onContentChange, activeFile, lintErrors }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
-  
-  // Compartments for dynamic reconfiguration
-  const editableCompartmentRef = useRef(new Compartment());
-  const breakpointCompartmentRef = useRef(new Compartment());
-  const activeLineCompartmentRef = useRef(new Compartment());
+  const linterCompartment = useRef(new Compartment());
 
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const createLintSource = useCallback((errors: LintingError[]): LintSource => {
+    return () => {
+        const doc = viewRef.current?.state.doc;
+        if (!doc) return [];
 
-  // Effect for initialization and cleanup
+        // FIX: Add an explicit return type to the map callback to guide TypeScript's inference
+        // for the subsequent filter, resolving the type predicate error.
+        const diagnostics: Diagnostic[] = errors.map((err): Diagnostic | null => {
+            if (err.line > doc.lines) return null;
+            const line = doc.line(err.line);
+            
+            // Highlight the whole line for simplicity, but avoid highlighting empty lines
+            const from = line.from;
+            const to = line.to;
+            if (from === to) return null;
+
+            return { from, to, severity: err.severity, message: err.message };
+        }).filter((d): d is Diagnostic => d !== null);
+      
+        return diagnostics;
+    };
+  }, []);
+
+  // Initialize CodeMirror view
   useEffect(() => {
-    if (editorRef.current && !viewRef.current) {
-      const startState = EditorState.create({
-        doc: content,
-        extensions: [
-          lineNumbers(),
-          highlightSpecialChars(),
-          history(),
-          drawSelection(),
-          highlightActiveLineGutter(),
-          highlightActiveLine(),
-          keymap.of(defaultKeymap),
-          javascript({ jsx: true, typescript: true }),
-          oneDark,
-          EditorView.updateListener.of((update) => {
-            if (update.docChanged) {
-              onContentChange(update.state.doc.toString());
-            }
-          }),
-          editableCompartmentRef.current.of(EditorView.editable.of(!!activeFile)),
-          breakpointCompartmentRef.current.of([]),
-          activeLineCompartmentRef.current.of([]),
-          gutter({
-            class: "cm-breakpoint-gutter",
-            markers: () => RangeSet.empty,
-            initialSpacer: () => breakpointMarker,
-            domEventHandlers: {
-              mousedown(view, line) {
-                onToggleBreakpoint(view.state.doc.lineAt(line.from).number);
-                return true;
-              }
-            }
-          })
-        ],
-      });
+    if (!editorRef.current) return;
 
-      const view = new EditorView({
-        state: startState,
-        parent: editorRef.current,
-      });
-      viewRef.current = view;
-    }
+    const startState = EditorState.create({
+      doc: content,
+      extensions: [
+        lineNumbers(),
+        gutter({class: "cm-gutter"}),
+        keymap.of(defaultKeymap),
+        javascript({ jsx: true, typescript: true }),
+        retroTheme,
+        EditorView.updateListener.of(update => {
+          if (update.docChanged) {
+            onContentChange(update.state.doc.toString());
+          }
+        }),
+        linterCompartment.current.of(linter(createLintSource(lintErrors))),
+        lintGutter(),
+      ],
+    });
+
+    const view = new EditorView({
+      state: startState,
+      parent: editorRef.current,
+    });
+    
+    viewRef.current = view;
 
     return () => {
-      if (viewRef.current) {
-        viewRef.current.destroy();
-        viewRef.current = null;
-      }
+      view.destroy();
+      viewRef.current = null;
     };
+  // We only re-initialize if the container ref changes, which it shouldn't.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, []);
 
-  // Effect to handle external content changes
+  // Handle external content changes (e.g., file switched) transactionally
   useEffect(() => {
-    const view = viewRef.current;
-    if (view) {
-      const currentDoc = view.state.doc.toString();
-      if (content !== currentDoc) {
-        view.dispatch({
-          changes: { from: 0, to: currentDoc.length, insert: content || '' },
-        });
-      }
-    }
-  }, [content]);
-
-  // Effect to enable/disable the editor
-  useEffect(() => {
-    const view = viewRef.current;
-    if (view) {
-       view.dispatch({
-        effects: editableCompartmentRef.current.reconfigure(EditorView.editable.of(!!activeFile))
+    if (viewRef.current && content !== viewRef.current.state.doc.toString()) {
+      viewRef.current.dispatch({
+        changes: {
+          from: 0,
+          to: viewRef.current.state.doc.length,
+          insert: content,
+        },
       });
     }
-  }, [activeFile]);
+  }, [content, activeFile]);
 
-  // Effect to update breakpoint markers
+  // Update linter diagnostics dynamically when errors change
   useEffect(() => {
-    const view = viewRef.current;
-    if(view) {
-        const markers = RangeSet.of(
-            Array.from(breakpoints)
-                .map(lineNumber => view.state.doc.line(lineNumber).from)
-                .filter(pos => pos !== -1)
-                .map(pos => breakpointMarker.range(pos))
-        );
-        view.dispatch({
-            effects: breakpointCompartmentRef.current.reconfigure(
-                gutter({
-                    class: "cm-breakpoint-gutter",
-                    markers: () => markers,
-                })
-            )
+    if (viewRef.current) {
+        const newLintSource = createLintSource(lintErrors);
+        viewRef.current.dispatch({
+            effects: linterCompartment.current.reconfigure(linter(newLintSource, {
+                delay: 0 // Show diagnostics immediately
+            }))
         });
     }
-  }, [breakpoints]);
-    
-  // Effect to highlight the active debug line
-  useEffect(() => {
-    const view = viewRef.current;
-    if (view) {
-        let decoration;
-        if (activeDebugLine !== null) {
-            try {
-                const { from } = view.state.doc.line(activeDebugLine);
-                // FIX: Property 'from' does not exist on type 'typeof Range'. Replaced with correct CodeMirror 6 Decoration API.
-                const lineHighlight = Decoration.line({
-                    attributes: { style: "background-color: #00ff0030;" }
-                });
-                decoration = EditorView.decorations.of(Decoration.set([lineHighlight.range(from)]));
-            } catch {
-                decoration = EditorView.decorations.of(RangeSet.empty); // Line not found
-            }
-        } else {
-            decoration = EditorView.decorations.of(RangeSet.empty);
-        }
-        view.dispatch({
-            effects: activeLineCompartmentRef.current.reconfigure(decoration)
-        });
-    }
-  }, [activeDebugLine]);
-
-  // --- Handlers ---
-  const handleUndo = () => viewRef.current && undo({ state: viewRef.current.state, dispatch: viewRef.current.dispatch });
-  const handleRedo = () => viewRef.current && redo({ state: viewRef.current.state, dispatch: viewRef.current.dispatch });
-  
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const view = viewRef.current;
-    if (!view) return;
-
-    const selection = view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to);
-    if (selection) {
-        setContextMenu({ x: e.clientX, y: e.clientY, selection });
-    }
-  };
-
-  const handleCloseContextMenu = () => setContextMenu(null);
-
-  useEffect(() => {
-    if (contextMenu) {
-        document.addEventListener('click', handleCloseContextMenu);
-        return () => document.removeEventListener('click', handleCloseContextMenu);
-    }
-  }, [contextMenu]);
+  }, [lintErrors, createLintSource]);
 
 
   return (
-    <div ref={editorContainerRef} onContextMenu={handleContextMenu} className="bg-black/50 border-t-0 border-r border-b border-l border-green-800 p-0 flex flex-col h-full relative">
-      <div className="absolute top-2 right-2 z-10 flex items-center space-x-2">
-            <button onClick={handleUndo} disabled={!activeFile} className="p-1 border border-green-800 bg-gray-900/50 hover:bg-green-700 rounded-sm disabled:opacity-50" title="Undo"><UndoIcon className="w-4 h-4" /></button>
-            <button onClick={handleRedo} disabled={!activeFile} className="p-1 border border-green-800 bg-gray-900/50 hover:bg-green-700 rounded-sm disabled:opacity-50" title="Redo"><RedoIcon className="w-4 h-4" /></button>
+    <div className="bg-black/50 border border-green-800 p-2 flex flex-col h-full">
+      <h2 className="text-sm mb-2 border-b-2 border-green-800 flex-shrink-0">
+        EDITOR: {activeFile || 'No file selected'}
+      </h2>
+      <div className="relative flex-grow overflow-y-auto">
+        {activeFile ? (
+            <div ref={editorRef} className="h-full w-full"></div>
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <p>Select a file to begin editing.</p>
+          </div>
+        )}
       </div>
-      <div ref={editorRef} className="flex-grow overflow-hidden w-full h-full relative" />
-      
-      {contextMenu && (
-        <div style={{ top: contextMenu.y - (editorContainerRef.current?.getBoundingClientRect().top || 0), left: contextMenu.x - (editorContainerRef.current?.getBoundingClientRect().left || 0) }}
-             className="absolute bg-gray-800 border border-green-600 p-1 z-50 text-xs">
-            <button onClick={() => onCodeAction('refactor', contextMenu.selection)} className="flex items-center w-full text-left px-2 py-1 hover:bg-green-700"><RefactorIcon className="w-4 h-4 mr-2"/> Refactor with AI</button>
-            <button onClick={() => onCodeAction('test', contextMenu.selection)} className="flex items-center w-full text-left px-2 py-1 hover:bg-green-700"><TestIcon className="w-4 h-4 mr-2"/> Generate Test Stub</button>
-            <button onClick={() => onCodeAction('extract', contextMenu.selection)} className="flex items-center w-full text-left px-2 py-1 hover:bg-green-700"><ExtractIcon className="w-4 h-4 mr-2"/> Extract Component</button>
-        </div>
-      )}
     </div>
   );
 };

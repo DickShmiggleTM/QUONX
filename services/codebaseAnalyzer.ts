@@ -1,7 +1,7 @@
 // FIX: Added .ts extension to the import path.
-import { FileNode } from '../types.ts';
+import { FileNode, GraphNode } from '../types.ts';
 // FIX: Added .ts extension to the import path.
-import { GraphDB, GraphNode } from './graphDB.ts';
+import { GraphDB } from './graphDB.ts';
 
 interface ParsedQuery {
   intent: 'find-definition' | 'find-calls' | 'find-callers-of-function' | 'find-callers-of-semantic-target' | 'general-search';
@@ -16,15 +16,15 @@ interface ParsedQuery {
 export class CodebaseAnalyzer {
   private graphDB: GraphDB;
 
-  constructor() {
-    this.graphDB = new GraphDB();
+  constructor(graphDB: GraphDB) {
+    this.graphDB = graphDB;
   }
 
   /**
    * Builds the initial knowledge graph by traversing the entire file system.
    */
   buildInitialGraph(nodes: FileNode[]): void {
-    this.graphDB.clear();
+    // The graph is not cleared here; MemoryService manages the lifecycle.
     this.traverseAndIndex(nodes, '');
   }
 
@@ -46,6 +46,9 @@ export class CodebaseAnalyzer {
   updateGraphFromFile(path: string, content: string): void {
     this.graphDB.deleteNodesByPath(path);
     
+    // Add a single node for the file itself
+    this.graphDB.addNode({ id: path, type: 'file', path, name: path.split('/').pop()!, properties: { lineCount: content.split('\n').length } });
+
     const lines = content.split('\n');
     // Improved regex to capture any valid function/variable name
     const defRegex = /(?:function|class|const|let|var)\s+([a-zA-Z0-9_]+)/g;
@@ -288,6 +291,7 @@ export class CodebaseAnalyzer {
     
     const parentFunctions = new Map<string, GraphNode>();
     for (const callNode of callNodes) {
+        if (!callNode.path) continue;
         const functionsInFile = this.graphDB.findNodes(n => n.path === callNode.path && n.type.includes('-def'))
             .sort((a, b) => a.properties.line - b.properties.line); 
 

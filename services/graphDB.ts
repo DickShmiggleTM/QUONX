@@ -1,20 +1,7 @@
 
-// FIX: Added .ts extension to the import path.
-import { FileNode } from '../types.ts';
 
-export interface GraphNode {
-  id: string; // e.g., 'src/App.tsx:App'
-  type: 'file' | 'function-def' | 'class-def' | 'call';
-  path: string;
-  name: string;
-  properties: Record<string, any>;
-}
-
-export interface Edge {
-  sourceId: string;
-  targetId: string;
-  type: 'calls' | 'imports';
-}
+// FIX: Added .ts extension to import path.
+import { FileNode, GraphNode, Edge } from '../types.ts';
 
 /**
  * A simulation of an embedded graph database like FalkorDB.
@@ -74,5 +61,44 @@ export class GraphDB {
   
   findEdges(filter: (edge: Edge) => boolean): Edge[] {
     return this.edges.filter(filter);
+  }
+
+  getAllNodes(): GraphNode[] {
+    return Array.from(this.nodes.values());
+  }
+  
+  getAllEdges(): Edge[] {
+    return this.edges;
+  }
+  
+  // --- PERSISTENCE METHODS ---
+
+  /**
+   * Serializes the graph data to a JSON string.
+   * Converts Maps to Arrays for compatibility with JSON.
+   */
+  toJSON(): string {
+    return JSON.stringify({
+      nodes: Array.from(this.nodes.entries()),
+      edges: this.edges,
+    });
+  }
+
+  /**
+   * Hydrates the graph from a JSON string.
+   */
+  fromJSON(jsonString: string): boolean {
+    try {
+      const data = JSON.parse(jsonString);
+      if (data.nodes && Array.isArray(data.nodes) && data.edges && Array.isArray(data.edges)) {
+        this.nodes = new Map(data.nodes);
+        this.edges = data.edges;
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Failed to load graph from JSON:", e);
+      return false;
+    }
   }
 }

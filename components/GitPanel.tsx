@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { GitStatus, Commit } from '../types.ts';
-import { GitIcon, ModifiedIcon, UntrackedIcon, BranchIcon, PushIcon, PullIcon } from './icons.tsx';
+import React, { useState, useEffect } from 'react';
+import { GitStatus, Commit, CommitDiff } from '../types.ts';
+import { GitIcon, ModifiedIcon, UntrackedIcon, BranchIcon, PushIcon, PullIcon, UndoIcon } from './icons.tsx';
 
 interface GitState {
     status: GitStatus;
@@ -16,6 +16,8 @@ interface GitPanelProps {
     onSwitchBranch: (name: string) => void;
     onPush: () => void;
     onPull: () => void;
+    getCommitDiff: (commitId: string) => CommitDiff | null;
+    onRevertCommit: (commitId: string) => void;
 }
 
 const FileListItem: React.FC<{
@@ -31,13 +33,38 @@ const FileListItem: React.FC<{
     </div>
 );
 
-const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch, onSwitchBranch, onPush, onPull }) => {
+const DiffViewer: React.FC<{ diff: string }> = ({ diff }) => {
+    const lines = diff.split('\n');
+    return (
+        <pre className="p-2 bg-black/50 font-mono text-xs overflow-x-auto mt-1 rounded">
+            <code>
+                {lines.map((line, i) => {
+                    const color = line.startsWith('+') ? 'bg-green-900/50 text-green-300' : line.startsWith('-') ? 'bg-red-900/50 text-red-400' : 'text-gray-500';
+                    return <div key={i} className={color}>{line}</div>
+                })}
+            </code>
+        </pre>
+    )
+};
+
+const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch, onSwitchBranch, onPush, onPull, getCommitDiff, onRevertCommit }) => {
     const [commitMessage, setCommitMessage] = useState('');
     const [newBranchName, setNewBranchName] = useState('');
     const [activeTab, setActiveTab] = useState<'status' | 'history'>('status');
+    const [selectedCommit, setSelectedCommit] = useState<string | null>(null);
+    const [commitDiff, setCommitDiff] = useState<CommitDiff | null>(null);
 
     const { status, currentBranch, branches, history } = gitState;
     const hasChanges = status.modified.length > 0 || status.untracked.length > 0;
+
+    useEffect(() => {
+        if (selectedCommit) {
+            const diffData = getCommitDiff(selectedCommit);
+            setCommitDiff(diffData);
+        } else {
+            setCommitDiff(null);
+        }
+    }, [selectedCommit, getCommitDiff, history]); // depend on history in case of revert
 
     const handleCommit = () => {
         if (commitMessage.trim() && hasChanges) {
@@ -52,6 +79,16 @@ const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch,
             setNewBranchName('');
         }
     }
+    
+    const handleSelectCommit = (commitId: string) => {
+        setSelectedCommit(prev => prev === commitId ? null : commitId);
+    };
+
+    const handleRevert = (commitId: string) => {
+        if(window.confirm(`Are you sure you want to revert commit ${commitId.substring(0,7)}? This will create a new commit.`)) {
+            onRevertCommit(commitId);
+        }
+    };
 
     const timeAgo = (timestamp: number) => {
         const seconds = Math.floor((new Date().getTime() - timestamp) / 1000);
@@ -143,9 +180,52 @@ const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch,
                          ) : (
                             <ul>
                                 {history.map(c => (
-                                    <li key={c.id} className="mb-2 p-2 border-b border-green-900/50">
-                                        <p className="font-bold text-green-300">{c.message}</p>
-                                        <p className="text-gray-400">{c.id.substring(0, 7)} - <span className="italic">{timeAgo(c.timestamp)}</span></p>
+                                    <li key={c.id} className="mb-1 border-b border-green-900/50">
+                                        <div onClick={() => handleSelectCommit(c.id)} className="p-2 cursor-pointer hover:bg-green-900/50">
+                                            <p className="font-bold text-green-300">{c.message}</p>
+                                            <p className="text-gray-400">{c.id.substring(0, 7)} - <span className="italic">{timeAgo(c.timestamp)}</span></p>
+                                        </div>
+                                        {selectedCommit === c.id && commitDiff && (
+                                            <div className="p-2 bg-black/30 border-t-2 border-green-800">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <h4 className="font-bold">Commit Details</h4>
+                                                    <button 
+                                                        onClick={() => handleRevert(c.id)}
+                                                        className="flex items-center px-2 py-1 border border-yellow-600 text-yellow-400 hover:bg-yellow-600 hover:text-black rounded-sm"
+                                                        title="Revert this commit"
+                                                    >
+                                                        <UndoIcon className="w-3 h-3 mr-1" />
+                                                        Revert
+                                                    </button>
+                                                </div>
+                                                {commitDiff.added.length > 0 && (
+                                                    <div className="mb-1">
+                                                        <p className="font-semibold text-green-400">Added:</p>
+                                                        {commitDiff.added.map(path => <p key={path} className="ml-2 font-mono text-xs">+ {path}</p>)}
+                                                    </div>
+                                                )}
+                                                {commitDiff.deleted.length > 0 && (
+                                                    <div className="mb-1">
+                                                        <p className="font-semibold text-red-400">Deleted:</p>
+                                                        {commitDiff.deleted.map(path => <p key={path} className="ml-2 font-mono text-xs">- {path}</p>)}
+                                                    </div>
+                                                )}
+                                                {commitDiff.modified.length > 0 && (
+                                                    <div className="mb-1">
+                                                        <p className="font-semibold text-yellow-400">Modified:</p>
+                                                        {commitDiff.modified.map(file => (
+                                                            <details key={file.path} className="ml-2 mt-1">
+                                                                <summary className="font-mono text-xs cursor-pointer">M {file.path}</summary>
+                                                                <DiffViewer diff={file.diff} />
+                                                            </details>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {(commitDiff.added.length + commitDiff.modified.length + commitDiff.deleted.length) === 0 && (
+                                                    <p className="text-gray-500">No file changes in this commit.</p>
+                                                )}
+                                            </div>
+                                        )}
                                     </li>
                                 ))}
                             </ul>

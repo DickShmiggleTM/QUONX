@@ -1,74 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>QUONX IDE</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <style>
-      body {
-        font-family: 'Press Start 2P', cursive;
-        image-rendering: pixelated;
-      }
-      /* Custom scrollbar for webkit browsers */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #1a1a1a;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #00ff00;
-        border: 1px solid #1a1a1a;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #00cc00;
-      }
-      /* Selection color */
-      ::selection {
-        background: #00ff00;
-        color: #000000;
-      }
-      /* CodeMirror Custom Styles */
-      .cm-editor {
-        height: 100%;
-        width: 100%;
-        outline: none !important;
-        font-family: monospace;
-        font-size: 14px;
-      }
-       .cm-scroller {
-        font-family: monospace !important;
-      }
-      .cm-gutters {
-        font-family: monospace !important;
-      }
-    </style>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QUONX IDE</title>
+  <style>
+    body {
+      background-color: #0d0d0d;
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    #root {
+      width: 100vw;
+      height: 100vh;
+    }
+    /* Custom scrollbar to match the theme */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #222;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: #00ff00;
+      border: 2px solid #222;
+    }
+  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.17.0",
-    "@codemirror/state": "https://aistudiocdn.com/@codemirror/state@^6.4.1",
-    "@codemirror/view": "https://aistudiocdn.com/@codemirror/view@^6.29.0",
-    "@codemirror/commands": "https://aistudiocdn.com/@codemirror/commands@^6.6.0",
-    "@codemirror/lang-javascript": "https://aistudiocdn.com/@codemirror/lang-javascript@^6.2.2",
-    "@codemirror/theme-one-dark": "https://aistudiocdn.com/@codemirror/theme-one-dark@^6.1.2",
-    "re-resizable": "https://aistudiocdn.com/re-resizable@^6.11.2",
-    "react-split": "https://aistudiocdn.com/react-split@^2.0.14"
+  {
+    "imports": {
+      "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+      "@google/genai": "https://aistudiocdn.com/@google/genai@^1.17.0",
+      "react/": "https://aistudiocdn.com/react@^19.1.1/",
+      "react": "https://aistudiocdn.com/react@^19.1.1",
+      "@codemirror/state": "https://aistudiocdn.com/@codemirror/state@^6.4.1",
+      "@codemirror/view": "https://aistudiocdn.com/@codemirror/view@^6.29.0",
+      "@codemirror/language": "https://aistudiocdn.com/@codemirror/language@^6.10.2",
+      "@codemirror/lang-javascript": "https://aistudiocdn.com/@codemirror/lang-javascript@^6.2.2",
+      "@codemirror/lint": "https://aistudiocdn.com/@codemirror/lint@^6.8.1",
+      "lezer-common": "https://aistudiocdn.com/lezer-common@^1.2.2",
+      "@codemirror/commands": "https://aistudiocdn.com/@codemirror/commands@^6.6.0"
+    }
   }
-}
-</script>
+  </script>
 </head>
-  <body class="bg-black text-xs text-green-400">
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+<body>
+  <div id="root"></div>
+  <script type="module" src="./index.tsx"></script>
+</body>
 </html>

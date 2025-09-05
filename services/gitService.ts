@@ -1,7 +1,36 @@
-import { FileNode, GitStatus, Commit } from '../types.ts';
+import { FileNode, GitStatus, Commit, CommitDiff } from '../types.ts';
 
 // Simple deep clone for objects and arrays
 const deepClone = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));
+
+// Diff generation utility (simple line-by-line)
+const generateDiff = (oldContent: string, newContent: string): string => {
+    const oldLines = oldContent.split('\n');
+    const newLines = newContent.split('\n');
+    const allLines = new Set([...oldLines, ...newLines]);
+    const diffLines: string[] = [];
+
+    // This is a simplified diff for demonstration.
+    // A real implementation would use a proper diffing algorithm (e.g., Myers diff).
+    newLines.forEach(line => {
+        if (!oldLines.includes(line)) {
+            diffLines.push(`+ ${line}`);
+        }
+    });
+    oldLines.forEach(line => {
+        if (!newLines.includes(line)) {
+            diffLines.push(`- ${line}`);
+        }
+    });
+
+    if (diffLines.length === 0) {
+        // Fallback for content change that doesn't add/remove lines (e.g. whitespace)
+        return "+ (Content modified)";
+    }
+
+    return diffLines.join('\n');
+};
+
 
 export class GitService {
     // Core Git data structures
@@ -224,6 +253,80 @@ export class GitService {
 
         return { success: true, message: `Pulled ${commitsToPull.length} commit(s). Your local branch is updated.`, newFiles: newFileTree };
     }
+
+    public getCommitDiff(commitId: string): CommitDiff | null {
+        const commit = this.commits.get(commitId);
+        if (!commit) return null;
+
+        const parentId = commit.parents[0];
+        const parentCommit = parentId ? this.commits.get(parentId) : null;
+
+        const currentTree = commit.tree;
+        const parentTree = parentCommit ? parentCommit.tree : new Map<string, string>();
+
+        const diff: CommitDiff = {
+            added: [],
+            modified: [],
+            deleted: [],
+        };
+
+        // Check for added and modified files
+        currentTree.forEach((content, path) => {
+            if (!parentTree.has(path)) {
+                diff.added.push(path);
+            } else if (parentTree.get(path) !== content) {
+                diff.modified.push({
+                    path,
+                    diff: generateDiff(parentTree.get(path)!, content),
+                });
+            }
+        });
+
+        // Check for deleted files
+        parentTree.forEach((_content, path) => {
+            if (!currentTree.has(path)) {
+                diff.deleted.push(path);
+            }
+        });
+
+        return diff;
+    }
+
+    public revertCommit(commitId: string): { success: boolean; message: string; newFiles?: FileNode[] } {
+        const commitToRevert = this.commits.get(commitId);
+        if (!commitToRevert) {
+            return { success: false, message: `Error: Commit ${commitId} not found.` };
+        }
+
+        const headCommit = this.getHeadCommit();
+        if (!headCommit) {
+            return { success: false, message: `Error: Could not find HEAD commit.` };
+        }
+        
+        const parentId = commitToRevert.parents[0];
+        const parentCommit = parentId ? this.commits.get(parentId) : null;
+        
+        // The tree we want to revert to
+        const targetTree = parentCommit ? parentCommit.tree : new Map<string, string>();
+
+        const revertMessage = `Revert "${commitToRevert.message}"`;
+        const newCommitId = this.createCommitId(revertMessage);
+        const newCommit: Commit = {
+            id: newCommitId,
+            message: revertMessage,
+            parents: [headCommit.id], // The new commit is on top of the current HEAD
+            tree: targetTree,
+            timestamp: Date.now(),
+        };
+
+        this.commits.set(newCommitId, newCommit);
+        this.branches.set(this.HEAD, newCommitId);
+
+        const newFileTree = this.unflattenFiles(targetTree);
+        
+        return { success: true, message: `Successfully reverted commit ${commitToRevert.id.substring(0, 7)}. A new commit has been created.`, newFiles: newFileTree };
+    }
+
 
     private unflattenFiles(tree: Map<string, string>): FileNode[] {
         const root: FileNode[] = [];
