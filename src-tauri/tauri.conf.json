@@ -1,0 +1,80 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "QUONX IDE",
+  "version": "0.1.0",
+  "identifier": "com.quonx.ide",
+  "build": {
+    "frontendDist": "../QUONX/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "cd ../QUONX && npm run dev",
+    "beforeBuildCommand": "cd ../QUONX && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "QUONX IDE - Symbiotic Development Environment",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 1200,
+        "minHeight": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "maximized": false,
+        "decorations": true,
+        "alwaysOnTop": false,
+        "skipTaskbar": false
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "macOSPrivateApi": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "QUONX IDE - Symbiotic Development Environment",
+    "longDescription": "A revolutionary IDE that transcends traditional development tools by creating a truly sentient and symbiotic development environment with local-first AI, real-time codebase analysis, and autonomous code evolution.",
+    "externalBin": [
+      "binaries/quonx-ai-engine"
+    ]
+  },
+  "plugins": {
+    "fs": {
+      "scope": ["**"]
+    },
+    "shell": {
+      "scope": [
+        {
+          "name": "python",
+          "cmd": "python",
+          "args": true
+        },
+        {
+          "name": "node",
+          "cmd": "node", 
+          "args": true
+        },
+        {
+          "name": "git",
+          "cmd": "git",
+          "args": true
+        }
+      ]
+    },
+    "process": {
+      "scope": ["**"]
+    },
+    "http": {
+      "scope": ["http://localhost:*", "https://localhost:*"]
+    }
+  }
+}

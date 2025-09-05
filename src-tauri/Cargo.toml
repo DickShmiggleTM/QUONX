@@ -1,0 +1,48 @@
+[package]
+name = "quonx-ide"
+version = "0.1.0"
+description = "QUONX IDE - Symbiotic Development Environment"
+authors = ["QUONX Team"]
+license = "MIT"
+repository = "https://github.com/DickShmiggleTM/QUONX"
+edition = "2021"
+rust-version = "1.77.2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "quonx_ide_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.4.1", features = ["codegen"] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+env_logger = "0.11"
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+
+# Tauri core and plugins
+tauri = { version = "2.8.5", features = ["macos-private-api"] }
+tauri-plugin-log = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-process = "2"
+tauri-plugin-http = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+
+# File system watching and processing
+notify = "6.0"
+walkdir = "2.0"
+ignore = "0.4"
+
+# Process management for AI engine sidecar
+subprocess = "0.2"
+
+# HTTP client for communicating with AI engine
+reqwest = { version = "0.12", features = ["json"] }
