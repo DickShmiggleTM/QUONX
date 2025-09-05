@@ -41,7 +41,7 @@ const findParentAndNode = (nodes: FileNode[], path: string[]): { parent: FileNod
     return { parent: null, node: null, index: -1 };
 };
 
-const initialFiles: FileNode[] = [
+export const initialFiles: FileNode[] = [
   {
     name: 'src',
     children: [
@@ -61,85 +61,9 @@ const initialFiles: FileNode[] = [
   },
    {
     name: 'plugins',
-    children: [
-      {
-        name: 'git-helper',
-        children: [
-          { name: 'plugin.json', content: JSON.stringify({
-              name: "Git Helper",
-              version: "0.1.0",
-              description: "Provides basic git-related tools for the QUONX agent.",
-              author: "QUONX Core",
-              main: "index.js"
-            }, null, 2)
-          },
-          { name: 'index.js', content: `
-            // Example QUONX Plugin: Git Helper
-            console.log("Git Helper Plugin loading...");
-
-            quonx.registerTool(
-              'gitStatus',
-              'Checks the current git status of the project.',
-              (args) => {
-                console.log("Executing gitStatus tool with args:", args);
-                // In a real app, this would execute a shell command.
-                // Here, we simulate the output.
-                return "Simulated git status:\\n- modified: src/App.tsx\\n- new file: src/components/Button.tsx";
-              }
-            );
-
-            console.log("Git Helper Plugin loaded and tool registered.");
-          `},
-        ]
-      },
-      {
-        name: 'git-tools',
-        children: [
-          {
-            name: 'plugin.json', content: JSON.stringify({
-              name: "Git Tools",
-              version: "1.0.0",
-              description: "Provides tools for committing and pushing code with Git.",
-              author: "QUONX Community",
-              main: "index.js"
-            }, null, 2)
-          },
-          {
-            name: 'index.js', content: `
-// QUONX Plugin: Git Tools
-console.log("Git Tools Plugin loading...");
-
-quonx.registerTool(
-  'gitCommit',
-  'Commits staged changes. args: { message: string }',
-  (args) => {
-    if (!args || !args.message) {
-      return "Error: A commit message is required.";
-    }
-    console.log(\`Executing gitCommit with message: "\${args.message}"\`);
-    return \`Simulated git commit with message: '\${args.message}'\`;
-  }
-);
-
-quonx.registerTool(
-  'gitPush',
-  'Pushes committed changes to a remote branch. args: { branch: string }',
-  (args) => {
-    if (!args || !args.branch) {
-      return "Error: A branch name is required.";
-    }
-    console.log(\`Executing gitPush to branch: "\${args.branch}"\`);
-    return \`Simulated git push to branch '\${args.branch}'\`;
-  }
-);
-
-console.log("Git Tools Plugin loaded and tools registered.");
-            `
-          }
-        ]
-      }
-    ]
+    children: []
   },
+  { name: '.gitignore', content: 'node_modules\nmodels' },
   { name: 'package.json', content: '{ "name": "my-app" }' },
 ];
 
@@ -152,6 +76,18 @@ export const useFileSystem = () => {
     return node && node.content !== undefined ? node.content : null;
   }, [files]);
 
+  const listFiles = useCallback((path: string): string[] | null => {
+      if (path === '' || path === '.') {
+          return files.map(n => n.name + (n.children ? '/' : ''));
+      }
+      const pathParts = path.split('/');
+      const node = findNodeByPath(files, pathParts);
+      if (node && node.children) {
+          return node.children.map(n => n.name + (n.children ? '/' : ''));
+      }
+      return null;
+  }, [files]);
+
   const updateFileContent = useCallback((path: string, content: string) => {
     setFiles(currentFiles => {
       const newFiles = JSON.parse(JSON.stringify(currentFiles));
@@ -161,6 +97,47 @@ export const useFileSystem = () => {
       }
       return newFiles;
     });
+  }, []);
+
+  const writeFile = useCallback((path: string, content: string): string | null => {
+    const pathParts = path.split('/');
+    const fileName = pathParts[pathParts.length - 1];
+    if (!fileName || fileName.includes('/')) {
+        console.error("Invalid file name in path:", path);
+        return null;
+    }
+
+    let success = false;
+    setFiles(currentFiles => {
+        const newFiles = JSON.parse(JSON.stringify(currentFiles));
+        const parentPath = pathParts.slice(0, -1);
+        
+        let parentDir = newFiles;
+        if (parentPath.length > 0) {
+            const parentNode = findNodeByPath(newFiles, parentPath);
+            if (!parentNode || !parentNode.children) {
+                console.error("Cannot write file, parent path does not exist or is not a folder:", parentPath.join('/'));
+                return currentFiles;
+            }
+            parentDir = parentNode.children;
+        }
+
+        const existingFile = parentDir.find(f => f.name === fileName);
+        if (existingFile) {
+            if (existingFile.content !== undefined) {
+                existingFile.content = content;
+                success = true;
+            } else {
+                console.error("Cannot write content to a folder:", path);
+            }
+        } else {
+            parentDir.push({ name: fileName, content: content });
+            parentDir.sort((a, b) => a.name.localeCompare(b.name));
+            success = true;
+        }
+        return newFiles;
+    });
+    return success ? path : null;
   }, []);
 
   const createFile = useCallback((path: string): string | null => {
@@ -198,7 +175,7 @@ export const useFileSystem = () => {
     return success ? path : null;
   }, []);
 
-  const createFolder = useCallback((path: string): string | null => {
+  const createDirectory = useCallback((path: string): string | null => {
     const pathParts = path.split('/');
     const folderName = pathParts[pathParts.length - 1];
     if (!folderName || folderName.includes('/')) {
@@ -283,5 +260,5 @@ export const useFileSystem = () => {
     return success;
   }, []);
 
-  return { files, getFileContent, updateFileContent, createFile, createFolder, renameNode, deleteNode, setFiles };
+  return { files, getFileContent, updateFileContent, createFile, createDirectory, renameNode, deleteNode, setFiles, writeFile, listFiles };
 };

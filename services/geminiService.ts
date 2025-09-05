@@ -15,8 +15,9 @@ interface GenerateContentOptions {
 /**
  * Generates content using the Gemini API.
  * This is a wrapper to centralize API calls.
+ * If 'json' is true, it attempts to parse the response as JSON.
  */
-export const generateContent = async ({ model, prompt, systemInstruction, json }: GenerateContentOptions): Promise<string> => {
+export const generateContent = async ({ model, prompt, systemInstruction, json }: GenerateContentOptions): Promise<any> => {
     try {
         const config: { systemInstruction?: string; responseMimeType?: string; } = {};
         if (systemInstruction) {
@@ -34,8 +35,24 @@ export const generateContent = async ({ model, prompt, systemInstruction, json }
             ...(Object.keys(config).length > 0 && { config }),
         });
         
-        // Per guidelines, access the text directly from the response object.
-        return response.text;
+        const responseText = response.text;
+
+        if (json) {
+            try {
+                // The API can sometimes wrap the JSON in markdown backticks, so we clean it.
+                const cleanJsonString = responseText.replace(/^```json\s*/, '').replace(/```$/, '');
+                return JSON.parse(cleanJsonString);
+            } catch (error) {
+                console.error("Failed to parse JSON from Gemini API:", responseText, error);
+                if (error instanceof Error) {
+                    return `Error: Failed to parse JSON response. Details: ${error.message}`;
+                }
+                return "Error: Failed to parse JSON response from Gemini API.";
+            }
+        }
+        
+        // Per guidelines, access the text directly from the response object if not JSON.
+        return responseText;
 
     } catch (error) {
         console.error("Error calling Gemini API:", error);

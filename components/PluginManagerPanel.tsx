@@ -22,23 +22,36 @@ const PluginManagerPanel: React.FC<PluginManagerPanelProps> = ({ plugins, enable
                         <li key={plugin.name} className="mb-2 p-2 border border-green-900 bg-black/30">
                             <div className="flex justify-between items-center">
                                 <span className="font-bold text-green-300">{plugin.name} <span className="text-gray-500 font-normal">v{plugin.version}</span></span>
-                                <label className="flex items-center cursor-pointer">
+                            </div>
+                            <p className="text-gray-400 mt-1">{plugin.description}</p>
+                            
+                            <div className="flex justify-between items-center mt-2 pt-2 border-t border-green-900/50">
+                                <span className={`text-xs font-bold ${
+                                    plugin.error ? 'text-red-500' : (enabledPlugins[plugin.name] !== false ? 'text-green-400' : 'text-gray-500')
+                                }`}>
+                                    Status: {plugin.error ? 'Error' : (enabledPlugins[plugin.name] !== false ? 'Enabled' : 'Disabled')}
+                                </span>
+                                <label className={`flex items-center ${plugin.error ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                                     <input 
                                         type="checkbox" 
-                                        className="sr-only" 
-                                        // A plugin is enabled by default if not present in the map
-                                        checked={enabledPlugins[plugin.name] !== false}
+                                        className="sr-only"
+                                        checked={!plugin.error && (enabledPlugins[plugin.name] !== false)}
                                         onChange={(e) => onTogglePlugin(plugin.name, e.target.checked)}
+                                        disabled={!!plugin.error}
                                     />
-                                    <div className={`w-8 h-4 flex items-center rounded-full p-1 transition-colors ${enabledPlugins[plugin.name] !== false ? 'bg-green-600' : 'bg-gray-700'}`}>
-                                        <div className={`bg-white w-2 h-2 rounded-full shadow-md transform transition-transform ${enabledPlugins[plugin.name] !== false ? 'translate-x-4' : ''}`}></div>
+                                    <div className={`w-8 h-4 flex items-center rounded-full p-1 transition-colors ${
+                                        !!plugin.error ? 'bg-gray-800 opacity-50' : (enabledPlugins[plugin.name] !== false ? 'bg-green-600' : 'bg-gray-700')
+                                    }`}>
+                                        <div className={`bg-white w-2 h-2 rounded-full shadow-md transform transition-transform ${
+                                            !plugin.error && (enabledPlugins[plugin.name] !== false) ? 'translate-x-4' : ''
+                                        }`}></div>
                                     </div>
                                 </label>
                             </div>
-                            <p className="text-gray-400 mt-1">{plugin.description}</p>
+
                             {plugin.error && (
-                                <div className="mt-1 text-red-500 border-t border-red-900 pt-1">
-                                    <p><span className="font-bold">Error:</span> {plugin.error}</p>
+                                <div className="mt-2 text-red-500">
+                                    <p><span className="font-bold">Details:</span> {plugin.error}</p>
                                 </div>
                             )}
                         </li>

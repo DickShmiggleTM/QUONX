@@ -85,7 +85,17 @@ export class PluginService {
             try {
                 manifest = JSON.parse(manifestContent);
             } catch(e) {
-                this.loadedPlugins.push({ name: pluginDir.name, version: 'N/A', description: 'Failed to parse plugin.json.', author: 'N/A', main: '', error: `Invalid JSON in manifest: ${e instanceof Error ? e.message : String(e)}` });
+                 // Log the full error for debugging.
+                console.error(`[Plugin Loader] Failed to parse plugin.json for '${pluginDir.name}':`, e);
+                this.loadedPlugins.push({ 
+                    name: pluginDir.name, 
+                    version: 'N/A', 
+                    description: 'Failed to parse plugin.json.', 
+                    author: 'N/A', 
+                    main: '', 
+                    // More specific UI error.
+                    error: `Invalid JSON in manifest. See console for details.` 
+                });
                 return;
             }
 
@@ -100,7 +110,8 @@ export class PluginService {
             const scriptContent = this.getFileContent(scriptPath);
 
             if (!scriptContent) {
-                manifest.error = `Main script '${manifest.main}' not found.`;
+                // More specific error message.
+                manifest.error = `Main script '${manifest.main}' not found at path '${scriptPath}'.`;
                 this.loadedPlugins.push(manifest);
                 return;
             }
@@ -117,7 +128,10 @@ export class PluginService {
                 });
                 this.loadedPlugins.push(manifest);
             } catch (error) {
-                manifest.error = error instanceof Error ? error.message : String(error);
+                // Log the full error object for debugging.
+                console.error(`[Plugin Loader] Error loading or executing plugin '${manifest.name}':`, error);
+                // Provide a more user-friendly error message in the UI.
+                manifest.error = `Execution failed: ${error instanceof Error ? error.message : String(error)}. See console for details.`;
                 this.loadedPlugins.push(manifest);
             }
         });
