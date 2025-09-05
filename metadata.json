@@ -1,0 +1,5 @@
+{
+  "name": "QUONX IDE",
+  "description": "A web-based simulation of QUONX IDE, a symbiotic development environment powered by a multi-agent AI. It features a retro pixel-art interface and demonstrates agentic workflows for code generation, analysis, and file system interaction.",
+  "requestFramePermissions": []
+}
