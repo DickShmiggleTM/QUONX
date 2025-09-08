@@ -37,6 +37,7 @@ export class GitService {
     private commits: Map<string, Commit> = new Map();
     private branches: Map<string, string> = new Map(); // branch name -> commit id
     private HEAD: string = 'main'; // Points to the current branch name
+    private mergeConflictFiles: Set<string> = new Set();
 
     // Simulation of remote repository
     private remote: {
@@ -94,16 +95,24 @@ export class GitService {
     }
 
     public status(currentFiles: FileNode[]): GitStatus {
+        if (this.mergeConflictFiles.size > 0) {
+            return {
+                staged: [],
+                modified: [],
+                untracked: [],
+                conflicts: Array.from(this.mergeConflictFiles).sort(),
+            };
+        }
+        
         const headCommit = this.getHeadCommit();
         if (!headCommit) {
-            // Should not happen in an initialized repo
-            return { staged: [], modified: [], untracked: [] };
+            return { staged: [], modified: [], untracked: [], conflicts: [] };
         }
 
         const headMap = headCommit.tree;
         const currentMap = this.flattenFiles(currentFiles);
 
-        const status: GitStatus = { staged: [], modified: [], untracked: [] };
+        const status: GitStatus = { staged: [], modified: [], untracked: [], conflicts: [] };
 
         currentMap.forEach((content, path) => {
             if (!headMap.has(path)) {
@@ -113,33 +122,27 @@ export class GitService {
             }
         });
         
-        // This simplified model assumes all changes are "staged" on commit.
-        // For the UI, we'll treat all diffs as "changes" to be staged.
-        status.staged = []; // Staging is now implicit in the commit action.
         status.modified.sort();
         status.untracked.sort();
         
         return status;
-    }
-    
-    // In this new model, `add` is conceptual. The commit will snapshot all changes.
-    // We keep this for AI tool compatibility.
-    public add(paths: string[] | string): string {
-         return "Changes noted. Ready to commit.";
     }
 
     public commit(currentFiles: FileNode[], message: string): boolean {
         const headCommit = this.getHeadCommit();
         if (!headCommit) return false;
 
-        const currentTree = this.flattenFiles(currentFiles);
-        
-        // Check if there are any actual changes
-        const status = this.status(currentFiles);
-        if (status.modified.length === 0 && status.untracked.length === 0) {
-            return false; // No changes to commit
+        const isMergeCommit = this.mergeConflictFiles.size > 0;
+        if (isMergeCommit) {
+            this.mergeConflictFiles.clear();
+        } else {
+            const status = this.status(currentFiles);
+            if (status.modified.length === 0 && status.untracked.length === 0) {
+                return false;
+            }
         }
 
+        const currentTree = this.flattenFiles(currentFiles);
         const newCommitId = this.createCommitId(message);
         const newCommit: Commit = {
             id: newCommitId,
@@ -170,6 +173,10 @@ export class GitService {
 
     public switchBranch(name: string): FileNode[] | null {
         if (!this.branches.has(name)) return null;
+        if (this.mergeConflictFiles.size > 0) {
+            console.error("Cannot switch branches with unresolved conflicts.");
+            return null;
+        }
         this.HEAD = name;
         const newHeadCommit = this.getHeadCommit();
         if (newHeadCommit) {
@@ -196,13 +203,12 @@ export class GitService {
 
         const remoteBranchId = this.remote.branches.get(this.HEAD);
         
-        // Find commits to push
         const commitsToPush: Commit[] = [];
         let currentId = localHeadId;
         while (currentId) {
             const commit = this.commits.get(currentId);
             if (!commit) break;
-            if (currentId === remoteBranchId) break; // Reached common ancestor
+            if (currentId === remoteBranchId) break;
             commitsToPush.unshift(commit);
             currentId = commit.parents[0];
         }
@@ -211,47 +217,95 @@ export class GitService {
             return { success: true, message: "Everything up-to-date." };
         }
 
-        // Simulate non-fast-forward
         if (remoteBranchId && !commitsToPush.find(c => c.parents.includes(remoteBranchId))) {
              return { success: false, message: "Push rejected. Pull remote changes first (non-fast-forward)." };
         }
         
-        // Apply changes to remote
         commitsToPush.forEach(c => this.remote.commits.set(c.id, deepClone(c)));
         this.remote.branches.set(this.HEAD, localHeadId);
 
         return { success: true, message: `Pushed ${commitsToPush.length} commit(s) to origin/${this.HEAD}.` };
     }
+    
+    private findCommonAncestor(commitId1: string, commitId2: string, commitMap: Map<string, Commit>): string | null {
+        const path1 = new Set<string>();
+        let currentId: string | undefined = commitId1;
+        while (currentId) {
+            path1.add(currentId);
+            const commit = commitMap.get(currentId);
+            currentId = commit?.parents[0];
+        }
 
-    public pull(): { success: boolean; message: string; newFiles?: FileNode[] } {
+        currentId = commitId2;
+        while (currentId) {
+            if (path1.has(currentId)) return currentId;
+            const commit = commitMap.get(currentId);
+            currentId = commit?.parents[0];
+        }
+        return null;
+    }
+    
+    private getChangedFilesSince(startCommitId: string, ancestorId: string | null, commitMap: Map<string, Commit>): Set<string> {
+        const changedFiles = new Set<string>();
+        let currentId: string | undefined = startCommitId;
+        while(currentId && currentId !== ancestorId) {
+            const commit = commitMap.get(currentId);
+            if (!commit) break;
+            const parentId = commit.parents[0];
+            const parentCommit = parentId ? commitMap.get(parentId) : null;
+            const currentTree = commit.tree;
+            const parentTree = parentCommit ? parentCommit.tree : new Map<string, string>();
+            
+            currentTree.forEach((content, path) => {
+                if (parentTree.get(path) !== content) changedFiles.add(path);
+            });
+            parentTree.forEach((_content, path) => {
+                if (!currentTree.has(path)) changedFiles.add(path);
+            });
+            
+            currentId = parentId;
+        }
+        return changedFiles;
+    }
+
+    public pull(): { success: boolean; message: string; newFiles?: FileNode[], conflictingFiles?: string[] } {
+        this.mergeConflictFiles.clear();
         const remoteBranchId = this.remote.branches.get(this.HEAD);
         const localHeadId = this.branches.get(this.HEAD);
 
-        if (!remoteBranchId) return { success: false, message: `No remote branch found for ${this.HEAD}.` };
+        if (!remoteBranchId || !localHeadId) return { success: false, message: `Could not find branch HEAD.` };
         if (remoteBranchId === localHeadId) return { success: true, message: "Already up-to-date." };
 
-        const commitsToPull: Commit[] = [];
-        let currentId = remoteBranchId;
-        while(currentId) {
-            const commit = this.remote.commits.get(currentId);
-            if (!commit) break;
-            if (currentId === localHeadId) break;
-            commitsToPull.unshift(commit);
-            currentId = commit.parents[0];
+        const ancestorId = this.findCommonAncestor(localHeadId, remoteBranchId, this.commits);
+
+        // Case: Local is ancestor of remote -> fast-forward
+        if (localHeadId === ancestorId) {
+            const remoteHeadCommit = this.remote.commits.get(remoteBranchId)!;
+            this.commits.set(remoteHeadCommit.id, deepClone(remoteHeadCommit));
+            this.branches.set(this.HEAD, remoteBranchId);
+            const newFileTree = this.unflattenFiles(remoteHeadCommit.tree);
+            return { success: true, message: `Pulled and fast-forwarded remote changes.`, newFiles: newFileTree };
         }
         
-        if (commitsToPull.length === 0) {
-             return { success: true, message: "Already up-to-date." };
+        // Case: Remote is ancestor of local -> nothing to pull
+        if (remoteBranchId === ancestorId) return { success: true, message: "Local branch is ahead of remote. Nothing to pull." };
+
+        // Case: Branches have diverged
+        const remoteChanges = this.getChangedFilesSince(remoteBranchId, ancestorId, this.remote.commits);
+        const localChanges = this.getChangedFilesSince(localHeadId, ancestorId, this.commits);
+        const conflictingFiles = Array.from(remoteChanges).filter(file => localChanges.has(file));
+
+        if (conflictingFiles.length > 0) {
+            this.mergeConflictFiles = new Set(conflictingFiles);
+            return { success: false, message: `Merge conflict in: ${conflictingFiles.join(', ')}. Please resolve conflicts and commit.`, conflictingFiles };
         }
-
-        // Copy commits to local and update branch pointer
-        commitsToPull.forEach(c => this.commits.set(c.id, deepClone(c)));
+        
+        // Diverged but no conflicts -> simulate a simple merge by taking remote changes
+        const remoteHeadCommit = this.remote.commits.get(remoteBranchId)!;
+        this.commits.set(remoteHeadCommit.id, deepClone(remoteHeadCommit));
         this.branches.set(this.HEAD, remoteBranchId);
-
-        const newHeadCommit = this.commits.get(remoteBranchId)!;
-        const newFileTree = this.unflattenFiles(newHeadCommit.tree);
-
-        return { success: true, message: `Pulled ${commitsToPull.length} commit(s). Your local branch is updated.`, newFiles: newFileTree };
+        const newFileTree = this.unflattenFiles(remoteHeadCommit.tree);
+        return { success: true, message: `Pulled and merged non-conflicting changes from remote.`, newFiles: newFileTree };
     }
 
     public getCommitDiff(commitId: string): CommitDiff | null {
@@ -270,23 +324,12 @@ export class GitService {
             deleted: [],
         };
 
-        // Check for added and modified files
         currentTree.forEach((content, path) => {
-            if (!parentTree.has(path)) {
-                diff.added.push(path);
-            } else if (parentTree.get(path) !== content) {
-                diff.modified.push({
-                    path,
-                    diff: generateDiff(parentTree.get(path)!, content),
-                });
-            }
+            if (!parentTree.has(path)) diff.added.push(path);
+            else if (parentTree.get(path) !== content) diff.modified.push({ path, diff: generateDiff(parentTree.get(path)!, content) });
         });
-
-        // Check for deleted files
         parentTree.forEach((_content, path) => {
-            if (!currentTree.has(path)) {
-                diff.deleted.push(path);
-            }
+            if (!currentTree.has(path)) diff.deleted.push(path);
         });
 
         return diff;
@@ -294,39 +337,25 @@ export class GitService {
 
     public revertCommit(commitId: string): { success: boolean; message: string; newFiles?: FileNode[] } {
         const commitToRevert = this.commits.get(commitId);
-        if (!commitToRevert) {
-            return { success: false, message: `Error: Commit ${commitId} not found.` };
-        }
-
+        if (!commitToRevert) return { success: false, message: `Error: Commit ${commitId} not found.` };
+        
         const headCommit = this.getHeadCommit();
-        if (!headCommit) {
-            return { success: false, message: `Error: Could not find HEAD commit.` };
-        }
+        if (!headCommit) return { success: false, message: `Error: Could not find HEAD commit.` };
         
         const parentId = commitToRevert.parents[0];
         const parentCommit = parentId ? this.commits.get(parentId) : null;
-        
-        // The tree we want to revert to
         const targetTree = parentCommit ? parentCommit.tree : new Map<string, string>();
 
         const revertMessage = `Revert "${commitToRevert.message}"`;
         const newCommitId = this.createCommitId(revertMessage);
-        const newCommit: Commit = {
-            id: newCommitId,
-            message: revertMessage,
-            parents: [headCommit.id], // The new commit is on top of the current HEAD
-            tree: targetTree,
-            timestamp: Date.now(),
-        };
+        const newCommit: Commit = { id: newCommitId, message: revertMessage, parents: [headCommit.id], tree: targetTree, timestamp: Date.now() };
 
         this.commits.set(newCommitId, newCommit);
         this.branches.set(this.HEAD, newCommitId);
 
         const newFileTree = this.unflattenFiles(targetTree);
-        
         return { success: true, message: `Successfully reverted commit ${commitToRevert.id.substring(0, 7)}. A new commit has been created.`, newFiles: newFileTree };
     }
-
 
     private unflattenFiles(tree: Map<string, string>): FileNode[] {
         const root: FileNode[] = [];
@@ -337,7 +366,6 @@ export class GitService {
             for (let i = 0; i < pathParts.length; i++) {
                 const part = pathParts[i];
                 const currentPath = pathParts.slice(0, i + 1).join('/');
-
                 let node = dirs.get(currentPath);
                 if (!node) {
                     node = { name: part, children: [] };
@@ -352,13 +380,10 @@ export class GitService {
         for (const [path, content] of tree.entries()) {
             const parts = path.split('/');
             const fileName = parts.pop()!;
-            const dirParts = parts;
-
-            const parentDir = dirParts.length > 0 ? ensurePath(dirParts) : root;
+            const parentDir = parts.length > 0 ? ensurePath(parts) : root;
             parentDir.push({ name: fileName, content });
         }
 
-        // Sort files/folders at each level
         const sortNodes = (nodes: FileNode[]) => {
             nodes.sort((a, b) => a.name.localeCompare(b.name));
             nodes.forEach(node => {
@@ -366,7 +391,6 @@ export class GitService {
             });
         };
         sortNodes(root);
-        
         return root;
     }
 }

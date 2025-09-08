@@ -71,7 +71,7 @@ export const initialFiles: FileNode[] = [
           },
           {
             name: 'index.js',
-            content: "quonx.registerTool('gitStatus', 'Checks the current git status of the project.', (args) => {});\nquonx.registerTool('gitCommit', 'Commits all current changes. args: { message: string }', (args) => {});\nquonx.registerTool('gitBranch', 'Creates a new branch. args: { name: string }', (args) => {});\nquonx.registerTool('gitCheckout', 'Switches to a different branch. args: { name: string }', (args) => {});\nquonx.registerTool('gitLog', 'Shows the commit history for the current branch.', (args) => {});\nquonx.registerTool('gitPush', 'Pushes committed changes to the remote repository.', (args) => {});\nquonx.registerTool('gitPull', 'Pulls changes from the remote repository.', (args) => {});"
+            content: "quonx.registerTool('gitStatus', 'Checks the current git status of the project (modified, untracked files).', () => {});\nquonx.registerTool('gitCommit', 'Commits all current changes with a given message. args: { \"message\": \"Your commit message\" }', (args) => {});\nquonx.registerTool('gitPush', 'Pushes committed changes to the remote repository.', () => {});\nquonx.registerTool('gitPull', 'Pulls the latest changes from the remote repository.', () => {});\nquonx.registerTool('gitBranch', 'Creates a new branch. args: { \"name\": \"new-branch-name\" }', (args) => {});"
           }
         ]
       }

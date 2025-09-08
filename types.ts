@@ -1,4 +1,4 @@
-// types.ts
+// FIX: Removed circular dependency import. FileNode is defined and exported from this file.
 
 // From useFileSystem.ts
 export interface FileNode {
@@ -58,6 +58,7 @@ export interface GitStatus {
     staged: string[];
     modified: string[];
     untracked: string[];
+    conflicts: string[];
 }
 
 export interface Commit {
@@ -132,4 +133,14 @@ export interface LintingError {
     column: number;
     message: string;
     severity: 'error' | 'warning';
+}
+
+// From debuggerService.ts
+export interface DebuggerState {
+    isActive: boolean;
+    isPaused: boolean;
+    currentLine: number | null;
+    breakpoints: Map<number, string>; // Maps line number to a condition string
+    callStack: { function: string; file: string; line: number }[];
+    scope: Record<string, any>;
 }

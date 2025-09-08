@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { ModelSettings, RoleModels } from '../types.ts';
 
@@ -15,7 +16,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettingsChang
     const { name, value } = e.target;
     onSettingsChange({
       ...settings,
-      [name]: e.target.type === 'range' ? parseFloat(value) : value,
+      [name as keyof ModelSettings]: e.target.type === 'range' ? parseFloat(value) : value,
     });
   };
 

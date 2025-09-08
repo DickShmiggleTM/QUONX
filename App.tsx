@@ -6,7 +6,7 @@ import AIAgentPanel from './components/AIAgentPanel.tsx';
 import SettingsPanel from './components/SettingsPanel.tsx';
 import { useFileSystem, initialFiles } from './hooks/useFileSystem.ts';
 import { generateContent } from './services/geminiService.ts';
-import { Message, ModelSettings, RoleModels, FileNode, GitStatus, Commit, CommitDiff, Plugin, SearchResult, IndexStatus, LintingError, SwarmTaskStatus, Agent } from './types.ts';
+import { Message, ModelSettings, RoleModels, FileNode, GitStatus, Commit, CommitDiff, Plugin, SearchResult, IndexStatus, LintingError, SwarmTaskStatus, Agent, DebuggerState, GraphNode } from './types.ts';
 import { IntentInferenceEngine } from './services/intentInferenceEngine.ts';
 import { CodebaseAnalyzer } from './services/codebaseAnalyzer.ts';
 import { GitService } from './services/gitService.ts';
@@ -21,6 +21,10 @@ import LintingPanel from './components/LintingPanel.tsx';
 import { LintingService } from './services/lintingService.ts';
 import SwarmPanel from './components/SwarmPanel.tsx';
 import { SwarmCoordinator } from './services/swarmService.ts';
+import DebuggerPanel from './components/DebuggerPanel.tsx';
+import { DebuggerService } from './services/debuggerService.ts';
+import MemoryPanel from './components/MemoryPanel.tsx';
+
 
 // Main application component
 const App: React.FC = () => {
@@ -36,8 +40,8 @@ const App: React.FC = () => {
     const [roleModels, setRoleModels] = useState<RoleModels>({ chat: 'gemini-2.5-flash', code: 'gemini-2.5-flash', reasoner: 'gemini-2.5-flash' });
 
     // Window/Panel Management
-    type WindowName = 'settings' | 'git' | 'plugins' | 'indexing' | 'linting' | 'swarm' | 'memory';
-    const [openWindows, setOpenWindows] = useState<Record<WindowName, boolean>>({ settings: false, git: false, plugins: false, indexing: false, linting: false, swarm: false, memory: false });
+    type WindowName = 'settings' | 'git' | 'plugins' | 'indexing' | 'linting' | 'swarm' | 'memory' | 'debugger';
+    const [openWindows, setOpenWindows] = useState<Record<WindowName, boolean>>({ settings: false, git: false, plugins: false, indexing: false, linting: false, swarm: false, memory: false, debugger: false });
     const [focusOrder, setFocusOrder] = useState<WindowName[]>([]);
 
     // --- SERVICES & ENGINES (Memoized) ---
@@ -50,7 +54,8 @@ const App: React.FC = () => {
     const lintingService = useMemo(() => new LintingService(), []);
     
     // --- GIT STATE ---
-    const [gitState, setGitState] = useState({ status: { staged: [], modified: [], untracked: [] }, currentBranch: 'main', branches: ['main'], history: [] as Commit[] });
+    // FIX: Initialize gitState.status with the 'conflicts' property to match the GitStatus type.
+    const [gitState, setGitState] = useState({ status: { staged: [], modified: [], untracked: [], conflicts: [] }, currentBranch: 'main', branches: ['main'], history: [] as Commit[] });
 
     // --- PLUGIN STATE ---
     const [plugins, setPlugins] = useState<Plugin[]>([]);
@@ -76,6 +81,23 @@ const App: React.FC = () => {
         { role: 'ReviewerAgent', description: 'Reviews all generated artifacts for quality.', model: 'reasoner', isActive: true, isCustom: false },
         { role: 'SynthesizerAgent', description: 'Summarizes the results.', model: 'chat', isActive: true, isCustom: false },
     ]);
+    
+    // --- DEBUGGER STATE ---
+    const [debuggerState, setDebuggerState] = useState<DebuggerState>({
+        isActive: false,
+        isPaused: false,
+        currentLine: null,
+        breakpoints: new Map(),
+        callStack: [],
+        scope: {},
+    });
+    
+    // --- MEMORY STATE ---
+    const [isMemoryEnabled, setIsMemoryEnabled] = useState(true);
+    const [graphData, setGraphData] = useState<{ nodes: GraphNode[], edges: any[] }>({ nodes: [], edges: [] });
+    
+    const debuggerService = useMemo(() => new DebuggerService(setDebuggerState), []);
+
 
     // --- HANDLERS ---
     const addToTerminal = useCallback((line: string) => {
@@ -152,8 +174,11 @@ const App: React.FC = () => {
     }, [files, updateGitState]);
 
     useEffect(() => {
-        memoryService.load();
+        if (memoryService.load()) {
+            addToTerminal("Loaded knowledge graph from memory.");
+        }
         analyzer.buildInitialGraph(files);
+        setGraphData(memoryService.getGraphData());
         pluginService.loadPlugins(enabledPlugins).then(() => setPlugins(pluginService.getLoadedPlugins()));
         updateGitState();
     }, []); // Run once on mount
@@ -161,12 +186,26 @@ const App: React.FC = () => {
     const handleFileSelect = (path: string) => {
         setActiveFile(path);
     };
+    
+    const handleDeleteNode = (path: string) => {
+        analyzer.removeGraphNodesForPath(path);
+        const success = deleteNode(path);
+        if (success) {
+            if(activeFile === path) setActiveFile(null);
+            setGraphData(memoryService.getGraphData());
+            memoryService.save();
+            addToTerminal(`Deleted ${path}`);
+        }
+    };
+
 
     const handleEditorChange = (content: string) => {
         setEditorContent(content);
         if (activeFile) {
             updateFileContent(activeFile, content);
             analyzer.updateGraphFromFile(activeFile, content);
+            setGraphData(memoryService.getGraphData());
+            memoryService.save();
         }
     };
     
@@ -200,6 +239,60 @@ const App: React.FC = () => {
             updateGitState();
         }
     };
+    
+    const handleSetBreakpoint = useCallback((line: number, condition: string | null) => {
+        setDebuggerState(prev => {
+            const newBreakpoints = new Map(prev.breakpoints);
+            if (condition === null) {
+                newBreakpoints.delete(line);
+            } else {
+                newBreakpoints.set(line, condition);
+            }
+            debuggerService.updateBreakpoints(newBreakpoints);
+            return { ...prev, breakpoints: newBreakpoints };
+        });
+    }, [debuggerService]);
+    
+    const pluginToolImplementations = useMemo(() => ({
+        gitStatus: () => {
+            const status = gitService.status(files);
+            return `Current Branch: ${gitService.getCurrentBranch()}\n\nModified:\n${status.modified.length > 0 ? status.modified.map(f => `  - ${f}`).join('\n') : '  (none)'}\n\nUntracked:\n${status.untracked.length > 0 ? status.untracked.map(f => `  - ${f}`).join('\n') : '  (none)'}`;
+        },
+        gitCommit: (args: { message: string }) => {
+            if (!args?.message) return "Error: Commit message is required.";
+            const success = gitService.commit(files, args.message);
+            if (success) {
+                updateGitState();
+                return `Committed changes with message: "${args.message}"`;
+            }
+            return "No changes to commit.";
+        },
+        gitPush: () => {
+            const res = gitService.push();
+            addToTerminal(res.message);
+            updateGitState();
+            return res.message;
+        },
+        gitPull: () => {
+            const res = gitService.pull();
+            addToTerminal(res.message);
+            if(res.newFiles) {
+                setFiles(res.newFiles);
+                setActiveFile(null);
+                addToTerminal("File tree updated from pull. Select a file to view.");
+            }
+            return res.message;
+        },
+        gitBranch: (args: { name: string }) => {
+            if (!args?.name) return "Error: Branch name is required.";
+            const success = gitService.createBranch(args.name);
+            if (success) {
+                updateGitState();
+                return `Created new branch '${args.name}'.`;
+            }
+            return `Error: Branch '${args.name}' already exists.`;
+        }
+    }), [gitService, files, updateGitState, setFiles, addToTerminal]);
 
     const handleSendMessage = async (prompt: string) => {
         setIsThinking(true);
@@ -207,14 +300,84 @@ const App: React.FC = () => {
         setMessages(prev => [...prev, userMessage]);
 
         const intentResult = await intentEngine.inferIntent(prompt, pluginService.getRegisteredTools());
-        let thought = `Intent: ${intentResult.intent}\nDetails: ${intentResult.details}`;
+        let thought = `Intent: ${intentResult.intent}\nTool: ${intentResult.toolName || 'N/A'}\nArgs: ${JSON.stringify(intentResult.toolArgs) || 'N/A'}`;
         let responseText = '';
+
+        if (isMemoryEnabled) {
+            const memories = memoryService.findRelevantMemories(prompt, activeFile);
+            if (memories.length > 0) {
+                const context = memories.map(m => `- ${m.type} '${m.name}' in ${m.path || 'global'}`).join('\n');
+                thought += `\n\n[Memory Context]\nFound ${memories.length} relevant memories:\n${context}`;
+            }
+        }
 
         try {
             switch (intentResult.intent) {
+                case 'plugin-tool':
+                    if (intentResult.toolName && intentResult.toolName in pluginToolImplementations) {
+                        const toolFn = pluginToolImplementations[intentResult.toolName as keyof typeof pluginToolImplementations];
+                        // @ts-ignore
+                        responseText = await Promise.resolve(toolFn(intentResult.toolArgs));
+                    } else {
+                        responseText = `Error: Plugin tool '${intentResult.toolName}' is not implemented.`;
+                    }
+                    break;
                 case 'code-search':
                     responseText = analyzer.searchCodebase(intentResult.details);
                     break;
+                case 'project-refactor': {
+                    const refactorMatch = intentResult.details.match(/rename\s+'?(\w+)'?\s+to\s+'?(\w+)'?/i);
+                    if (!refactorMatch) {
+                        responseText = "I couldn't understand the rename request. Please use the format: 'rename oldName to newName'.";
+                        break;
+                    }
+                    const [, oldName, newName] = refactorMatch;
+                    thought += `\nRefactoring: ${oldName} -> ${newName}`;
+            
+                    const definitionNode = analyzer.findDefinition(oldName);
+                    if (!definitionNode) {
+                        responseText = `Could not find a definition for '${oldName}'.`;
+                        break;
+                    }
+            
+                    const usageNodes = analyzer.findUsages(definitionNode.id);
+                    const affectedNodes = [definitionNode, ...usageNodes];
+                    const changesByFile = new Map<string, { path: string; linesToChange: number[] }>();
+            
+                    for (const node of affectedNodes) {
+                        if (!node.path) continue;
+                        if (!changesByFile.has(node.path)) {
+                            changesByFile.set(node.path, { path: node.path, linesToChange: [] });
+                        }
+                        changesByFile.get(node.path)!.linesToChange.push(node.properties.line);
+                    }
+                    
+                    const updatedFiles: string[] = [];
+                    const renameRegex = new RegExp(`\\b${oldName}\\b`, 'g');
+            
+                    for (const [, change] of changesByFile) {
+                        const originalContent = getFileContent(change.path);
+                        if (originalContent === null) continue;
+            
+                        const lines = originalContent.split('\n');
+                        const uniqueLinesToChange = new Set(change.linesToChange); 
+            
+                        uniqueLinesToChange.forEach(lineNumber => {
+                            const lineIndex = lineNumber - 1;
+                            if (lines[lineIndex]) {
+                                lines[lineIndex] = lines[lineIndex].replace(renameRegex, newName);
+                            }
+                        });
+                        
+                        const newContent = lines.join('\n');
+                        writeFile(change.path, newContent);
+                        analyzer.updateGraphFromFile(change.path, newContent);
+                        updatedFiles.push(change.path);
+                    }
+            
+                    responseText = `Successfully renamed '${oldName}' to '${newName}'.\nUpdated ${affectedNodes.length} occurrence(s) in ${updatedFiles.length} file(s):\n- ${[...new Set(updatedFiles)].join('\n- ')}`;
+                    break;
+                }
                 case 'code-generation':
                     if(activeFile) {
                         const fileContent = getFileContent(activeFile);
@@ -242,6 +405,10 @@ const App: React.FC = () => {
             thought += `\nError: ${e.stack}`;
         }
         
+        memoryService.addInteractionMemory(prompt, responseText, activeFile);
+        setGraphData(memoryService.getGraphData());
+        memoryService.save();
+
         const agentMessage: Message = { sender: 'agent', text: responseText, thought };
         setMessages(prev => [...prev, agentMessage]);
         setIsThinking(false);
@@ -256,24 +423,50 @@ const App: React.FC = () => {
                     <button onClick={() => toggleWindow('git')}>Git</button>
                     <button onClick={() => toggleWindow('indexing')}>Indexing</button>
                     <button onClick={() => toggleWindow('linting')}>Linting</button>
+                    <button onClick={() => toggleWindow('debugger')}>Debugger</button>
                     <button onClick={() => toggleWindow('swarm')}>Swarm</button>
+                    <button onClick={() => toggleWindow('memory')}>Memory</button>
                     <button onClick={() => toggleWindow('plugins')}>Plugins</button>
                     <button onClick={() => toggleWindow('settings')}>Settings</button>
                 </div>
             </header>
 
             <main className="flex-grow flex space-x-2 overflow-hidden">
-                <div className="w-1/5"><FileExplorer files={files} onFileSelect={handleFileSelect} activeFile={activeFile} onNewFile={(path) => createFile(path)} onNewDirectory={(path) => createDirectory(path)} onRename={(path, newName) => renameNode(path, newName)} onDelete={(path) => deleteNode(path)} /></div>
-                <div className="w-3/5 flex flex-col space-y-2"><div className="h-3/5"><Editor content={editorContent} onContentChange={handleEditorChange} activeFile={activeFile} lintErrors={lintErrors} /></div><div className="h-2/5"><Terminal output={terminalOutput} /></div></div>
+                <div className="w-1/5"><FileExplorer files={files} onFileSelect={handleFileSelect} activeFile={activeFile} onNewFile={(path) => createFile(path)} onNewDirectory={(path) => createDirectory(path)} onRename={(path, newName) => renameNode(path, newName)} onDelete={handleDeleteNode} /></div>
+                <div className="w-3/5 flex flex-col space-y-2"><div className="h-3/5"><Editor content={editorContent} onContentChange={handleEditorChange} activeFile={activeFile} lintErrors={lintErrors} breakpoints={debuggerState.breakpoints} onSetBreakpoint={handleSetBreakpoint} debuggerLine={debuggerState.currentLine} /></div><div className="h-2/5"><Terminal output={terminalOutput} /></div></div>
                 <div className="w-1/5"><AIAgentPanel messages={messages} onSendMessage={handleSendMessage} isThinking={isThinking} /></div>
             </main>
 
             <DraggableWindow title="SETTINGS" isOpen={openWindows.settings} onClose={() => toggleWindow('settings')} zIndex={10 + focusOrder.indexOf('settings')} onFocus={() => bringToFront('settings')}><SettingsPanel settings={settings} onSettingsChange={setSettings} roleModels={roleModels} onRoleModelsChange={setRoleModels} availableModels={availableModels} /></DraggableWindow>
-            <DraggableWindow title="GIT SOURCE CONTROL" isOpen={openWindows.git} onClose={() => toggleWindow('git')} zIndex={10 + focusOrder.indexOf('git')} onFocus={() => bringToFront('git')}><GitPanel gitState={gitState} onCommit={handleCommit} onCreateBranch={(name) => { gitService.createBranch(name); updateGitState(); }} onSwitchBranch={handleSwitchBranch} onPush={() => { const res = gitService.push(); addToTerminal(res.message); }} onPull={() => { const res = gitService.pull(); addToTerminal(res.message); if(res.newFiles) setFiles(res.newFiles); updateGitState(); }} getCommitDiff={(id) => gitService.getCommitDiff(id)} onRevertCommit={(id) => { const res = gitService.revertCommit(id); addToTerminal(res.message); if(res.newFiles) setFiles(res.newFiles); updateGitState(); }} /></DraggableWindow>
+            <DraggableWindow title="GIT SOURCE CONTROL" isOpen={openWindows.git} onClose={() => toggleWindow('git')} zIndex={10 + focusOrder.indexOf('git')} onFocus={() => bringToFront('git')}>
+                <GitPanel 
+                    gitState={gitState} 
+                    onCommit={handleCommit} 
+                    onCreateBranch={(name) => { gitService.createBranch(name); updateGitState(); }} 
+                    onSwitchBranch={handleSwitchBranch} 
+                    onPush={() => { 
+                        const res = gitService.push(); 
+                        addToTerminal(res.message);
+                        updateGitState(); 
+                    }} 
+                    onPull={() => { 
+                        const res = gitService.pull(); 
+                        addToTerminal(res.message); 
+                        if(res.newFiles) {
+                            setFiles(res.newFiles);
+                            setActiveFile(null);
+                            addToTerminal("File tree updated from pull. Select a file to view.");
+                        }
+                    }} 
+                    getCommitDiff={(id) => gitService.getCommitDiff(id)} 
+                    onRevertCommit={(id) => { const res = gitService.revertCommit(id); addToTerminal(res.message); if(res.newFiles) setFiles(res.newFiles); updateGitState(); }} />
+            </DraggableWindow>
             <DraggableWindow title="PLUGIN MANAGER" isOpen={openWindows.plugins} onClose={() => toggleWindow('plugins')} zIndex={10 + focusOrder.indexOf('plugins')} onFocus={() => bringToFront('plugins')}><PluginManagerPanel plugins={plugins} enabledPlugins={enabledPlugins} onTogglePlugin={(name, isEnabled) => { const newEnabled = {...enabledPlugins, [name]: isEnabled}; setEnabledPlugins(newEnabled); pluginService.loadPlugins(newEnabled).then(() => setPlugins(pluginService.getLoadedPlugins())); }} /></DraggableWindow>
             <DraggableWindow title="CONTEXT INDEXING" isOpen={openWindows.indexing} onClose={() => toggleWindow('indexing')} zIndex={10 + focusOrder.indexOf('indexing')} onFocus={() => bringToFront('indexing')}><IndexingPanel indexStatus={indexStatus} searchResults={searchResults} isIndexing={isIndexing} onStartIndexing={() => { setIsIndexing(true); indexingService.buildIndex(files).then(count => { setIndexStatus({ isIndexed: true, fileCount: count }); setIsIndexing(false); }); }} onSearch={(query) => setSearchResults(indexingService.search(query))} onResultClick={(result) => setActiveFile(result.path)} /></DraggableWindow>
             <DraggableWindow title="LINTING" isOpen={openWindows.linting} onClose={() => toggleWindow('linting')} zIndex={10 + focusOrder.indexOf('linting')} onFocus={() => bringToFront('linting')}><LintingPanel errors={lintErrors} onClearErrors={() => setLintErrors([])} onRunLint={() => { if (activeFile) { setLintErrors(lintingService.lint(editorContent)); } }} /></DraggableWindow>
+            <DraggableWindow title="DEBUGGER" isOpen={openWindows.debugger} onClose={() => toggleWindow('debugger')} zIndex={10 + focusOrder.indexOf('debugger')} onFocus={() => bringToFront('debugger')}><DebuggerPanel debuggerState={debuggerState} onStart={() => activeFile && debuggerService.start(editorContent, debuggerState.breakpoints, activeFile)} onStop={() => debuggerService.stop()} onStep={(action) => debuggerService.stepOver()} /></DraggableWindow>
             <DraggableWindow title="SWARM ACTIVITY" isOpen={openWindows.swarm} onClose={() => toggleWindow('swarm')} zIndex={10 + focusOrder.indexOf('swarm')} onFocus={() => bringToFront('swarm')}><SwarmPanel task={swarmTask} agents={agents} onToggleAgent={(role) => setAgents(prev => prev.map(a => a.role === role ? {...a, isActive: !a.isActive} : a))} onCreateAgent={(role, desc, model) => { if (!agents.find(a => a.role === role)) { setAgents(prev => [...prev, { role, description: desc, model, isActive: true, isCustom: true }]); } }} /></DraggableWindow>
+            <DraggableWindow title="KNOWLEDGE GRAPH MEMORY" isOpen={openWindows.memory} onClose={() => toggleWindow('memory')} zIndex={10 + focusOrder.indexOf('memory')} onFocus={() => bringToFront('memory')}><MemoryPanel isMemoryEnabled={isMemoryEnabled} onToggleMemory={setIsMemoryEnabled} onSearch={(query) => memoryService.search(query)} graphData={graphData} /></DraggableWindow>
         </div>
     );
 };

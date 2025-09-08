@@ -222,6 +222,25 @@ export class CodebaseAnalyzer {
   }
 
   /**
+   * Finds the definition node for a given function or class name.
+   * @param name The name of the function/class to find.
+   * @returns The graph node for the definition, or null if not found.
+   */
+  public findDefinition(name: string): GraphNode | null {
+    return this.graphDB.findNodes(n => (n.type === 'function-def' || n.type === 'class-def') && n.name === name)[0] || null;
+  }
+
+  /**
+   * Finds all usage (call) nodes that point to a given definition node ID.
+   * @param definitionId The ID of the function/class definition node.
+   * @returns An array of graph nodes representing the calls.
+   */
+  public findUsages(definitionId: string): GraphNode[] {
+    const callingEdges = this.graphDB.findEdges(e => e.targetId === definitionId && e.type === 'calls');
+    return callingEdges.map(e => this.graphDB.getNode(e.sourceId)).filter((n): n is GraphNode => n !== undefined);
+  }
+
+  /**
    * The main search function that queries the knowledge graph.
    */
   searchCodebase(query: string): string {

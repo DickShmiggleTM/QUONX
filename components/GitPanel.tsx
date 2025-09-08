@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GitStatus, Commit, CommitDiff } from '../types.ts';
-import { GitIcon, ModifiedIcon, UntrackedIcon, BranchIcon, PushIcon, PullIcon, UndoIcon } from './icons.tsx';
+import { GitIcon, ModifiedIcon, UntrackedIcon, BranchIcon, PushIcon, PullIcon, UndoIcon, ConflictIcon } from './icons.tsx';
 
 interface GitState {
     status: GitStatus;
@@ -56,6 +56,8 @@ const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch,
 
     const { status, currentBranch, branches, history } = gitState;
     const hasChanges = status.modified.length > 0 || status.untracked.length > 0;
+    const hasConflicts = status.conflicts && status.conflicts.length > 0;
+
 
     useEffect(() => {
         if (selectedCommit) {
@@ -67,9 +69,11 @@ const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch,
     }, [selectedCommit, getCommitDiff, history]); // depend on history in case of revert
 
     const handleCommit = () => {
-        if (commitMessage.trim() && hasChanges) {
-            onCommit(commitMessage.trim());
-            setCommitMessage('');
+        if (commitMessage.trim()) {
+            if(hasConflicts || hasChanges) {
+                onCommit(commitMessage.trim());
+                setCommitMessage('');
+            }
         }
     };
     
@@ -117,11 +121,11 @@ const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch,
                 <div className="bg-black/30 p-2 border border-green-900 mb-2">
                     <div className="flex items-center space-x-2 mb-2">
                          <BranchIcon className="w-4 h-4 text-green-400 flex-shrink-0" />
-                         <select value={currentBranch} onChange={(e) => onSwitchBranch(e.target.value)} className="w-full bg-black border border-green-700 p-1 text-xs">
+                         <select value={currentBranch} onChange={(e) => onSwitchBranch(e.target.value)} className="w-full bg-black border border-green-700 p-1 text-xs" disabled={hasConflicts}>
                             {branches.map(b => <option key={b} value={b}>{b}</option>)}
                          </select>
-                         <button onClick={onPull} className="p-2 border border-green-700 hover:bg-green-700 rounded-sm" title="Pull from remote"><PullIcon className="w-4 h-4"/></button>
-                         <button onClick={onPush} className="p-2 border border-green-700 hover:bg-green-700 rounded-sm" title="Push to remote"><PushIcon className="w-4 h-4"/></button>
+                         <button onClick={onPull} className="p-2 border border-green-700 hover:bg-green-700 rounded-sm" title="Pull from remote" disabled={hasConflicts}><PullIcon className="w-4 h-4"/></button>
+                         <button onClick={onPush} className="p-2 border border-green-700 hover:bg-green-700 rounded-sm" title="Push to remote" disabled={hasConflicts}><PushIcon className="w-4 h-4"/></button>
                     </div>
                      <div className="flex items-center space-x-2">
                         <input 
@@ -130,8 +134,9 @@ const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch,
                             onChange={(e) => setNewBranchName(e.target.value)}
                             placeholder="New branch name..."
                             className="w-full bg-black border border-green-700 p-1.5 text-xs placeholder-gray-500"
+                            disabled={hasConflicts}
                         />
-                        <button onClick={handleCreateBranch} className="px-3 py-1.5 border border-green-700 hover:bg-green-700 rounded-sm whitespace-nowrap">Create Branch</button>
+                        <button onClick={handleCreateBranch} className="px-3 py-1.5 border border-green-700 hover:bg-green-700 rounded-sm whitespace-nowrap" disabled={hasConflicts}>Create Branch</button>
                     </div>
                 </div>
 
@@ -146,31 +151,45 @@ const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch,
             <div className="flex-grow overflow-y-auto pt-2">
                 {activeTab === 'status' && (
                     <div>
+                         {hasConflicts && (
+                            <div className="mb-3 p-2 border border-red-500 bg-red-900/30">
+                                <h3 className="font-bold text-red-400 flex items-center mb-1">
+                                    <ConflictIcon className="w-4 h-4 mr-2" />
+                                    Merge Conflicts Detected
+                                </h3>
+                                <p className="text-gray-300 mb-2">Please resolve the conflicts in the following files, then commit the changes to finalize the merge.</p>
+                                {status.conflicts.map(path => (
+                                    <FileListItem key={path} path={path} color="text-red-400" Icon={ConflictIcon} />
+                                ))}
+                            </div>
+                        )}
                          <textarea
                             value={commitMessage}
                             onChange={(e) => setCommitMessage(e.target.value)}
-                            placeholder="Commit message..."
+                            placeholder={hasConflicts ? "Commit message for merge..." : "Commit message..."}
                             className="w-full bg-black border border-green-700 p-2 text-xs resize-none placeholder-gray-500"
                             rows={3}
                         />
                         <button 
                             onClick={handleCommit} 
-                            disabled={!hasChanges || !commitMessage.trim()}
+                            disabled={hasConflicts ? !commitMessage.trim() : (!hasChanges || !commitMessage.trim())}
                             className="w-full mt-1 p-2 bg-green-700 hover:bg-green-600 disabled:bg-gray-800 disabled:text-gray-500 disabled:border-gray-700 disabled:cursor-not-allowed"
                         >
-                            Commit Changes
+                            {hasConflicts ? 'Commit Merge' : 'Commit Changes'}
                         </button>
                         
-                        <div className="mt-3">
-                            <h3 className="font-bold mb-1">Changes ({status.modified.length + status.untracked.length})</h3>
-                            {status.modified.map(path => (
-                                <FileListItem key={path} path={path} color="text-yellow-400" Icon={ModifiedIcon} />
-                            ))}
-                            {status.untracked.map(path => (
-                                <FileListItem key={path} path={path} color="text-blue-400" Icon={UntrackedIcon} />
-                            ))}
-                            {!hasChanges && <p className="text-gray-500 mt-2">No changes to commit.</p>}
-                        </div>
+                        {!hasConflicts && (
+                             <div className="mt-3">
+                                <h3 className="font-bold mb-1">Changes ({status.modified.length + status.untracked.length})</h3>
+                                {status.modified.map(path => (
+                                    <FileListItem key={path} path={path} color="text-yellow-400" Icon={ModifiedIcon} />
+                                ))}
+                                {status.untracked.map(path => (
+                                    <FileListItem key={path} path={path} color="text-blue-400" Icon={UntrackedIcon} />
+                                ))}
+                                {!hasChanges && <p className="text-gray-500 mt-2">No changes to commit.</p>}
+                            </div>
+                        )}
                     </div>
                 )}
                 {activeTab === 'history' && (

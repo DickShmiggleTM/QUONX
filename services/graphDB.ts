@@ -1,5 +1,3 @@
-
-
 // FIX: Added .ts extension to import path.
 import { FileNode, GraphNode, Edge } from '../types.ts';
 
