@@ -1,0 +1,433 @@
+/* Quonx IDE - Retro Pixel Art Theme */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* Global Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Press Start 2P', monospace;
+  background: #0a0a0a;
+  color: #00ff00;
+  overflow: hidden;
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
+}
+
+/* App Container */
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(45deg, #0a0a0a 0%, #1a1a1a 100%);
+  border: 2px solid #00ff00;
+}
+
+/* Loading Screen */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.loading-screen {
+  text-align: center;
+  animation: pulse 2s infinite;
+}
+
+.pixel-loader {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 20px;
+  background: #00ff00;
+  animation: blink 1s infinite;
+  image-rendering: pixelated;
+}
+
+.pixel-title {
+  font-size: 24px;
+  color: #00ff00;
+  text-shadow: 2px 2px 0px #008800;
+  margin-bottom: 10px;
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+.pixel-subtitle {
+  font-size: 8px;
+  color: #888;
+  line-height: 1.5;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background: #111;
+  border-bottom: 2px solid #00ff00;
+  box-shadow: 0 2px 0 #008800;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.app-title {
+  font-size: 16px;
+  color: #00ff00;
+  text-shadow: 1px 1px 0px #008800;
+}
+
+.status-indicators {
+  display: flex;
+  gap: 8px;
+}
+
+.status-indicator {
+  padding: 4px 8px;
+  background: #333;
+  border: 1px solid #666;
+  font-size: 6px;
+  color: #666;
+  text-transform: uppercase;
+}
+
+.status-indicator.active {
+  background: #00ff00;
+  color: #000;
+  border-color: #00ff00;
+  animation: blink 1s infinite;
+}
+
+.header-right {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-button {
+  padding: 8px 12px;
+  background: #222;
+  border: 2px solid #444;
+  color: #888;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.1s;
+  image-rendering: pixelated;
+}
+
+.nav-button:hover {
+  background: #333;
+  border-color: #666;
+  color: #aaa;
+}
+
+.nav-button.active {
+  background: #00ff00;
+  color: #000;
+  border-color: #00ff00;
+  box-shadow: 0 0 10px #00ff00;
+}
+
+/* Content Layout */
+.app-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 250px;
+  background: #111;
+  border-right: 2px solid #00ff00;
+  overflow-y: auto;
+}
+
+.main-content {
+  flex: 1;
+  background: #0a0a0a;
+  overflow: hidden;
+}
+
+/* File Explorer */
+.file-explorer {
+  padding: 10px;
+}
+
+.file-item {
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 8px;
+  border: 1px solid transparent;
+  margin: 1px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-item:hover {
+  background: #222;
+  border-color: #444;
+}
+
+.file-item.selected {
+  background: #00ff00;
+  color: #000;
+  border-color: #00ff00;
+}
+
+.file-icon {
+  width: 12px;
+  height: 12px;
+  background: #666;
+  image-rendering: pixelated;
+}
+
+.file-icon.directory {
+  background: #ffaa00;
+}
+
+/* Editor */
+.editor-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-header {
+  padding: 8px 12px;
+  background: #111;
+  border-bottom: 1px solid #333;
+  font-size: 8px;
+  color: #888;
+}
+
+.editor-content {
+  flex: 1;
+  background: #000;
+  color: #00ff00;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  padding: 10px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* AI Agent Panel */
+.ai-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #111;
+}
+
+.ai-header {
+  padding: 8px 12px;
+  background: #222;
+  border-bottom: 1px solid #333;
+  font-size: 8px;
+  color: #00ff00;
+}
+
+.ai-messages {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.ai-message {
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 1px solid #333;
+  background: #0a0a0a;
+}
+
+.ai-message.user {
+  border-color: #0066ff;
+  background: #001122;
+}
+
+.ai-message.agent {
+  border-color: #00ff00;
+  background: #001100;
+}
+
+.ai-input {
+  padding: 8px 12px;
+  background: #222;
+  border-top: 1px solid #333;
+  display: flex;
+  gap: 8px;
+}
+
+.ai-input input {
+  flex: 1;
+  background: #000;
+  border: 1px solid #444;
+  color: #00ff00;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  padding: 4px 8px;
+}
+
+.ai-input button {
+  padding: 4px 8px;
+  background: #00ff00;
+  border: 1px solid #00ff00;
+  color: #000;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  cursor: pointer;
+}
+
+/* Terminal */
+.terminal-container {
+  height: 100%;
+  background: #000;
+  color: #00ff00;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  line-height: 1.4;
+  padding: 10px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.terminal-line {
+  margin-bottom: 2px;
+}
+
+.terminal-prompt {
+  color: #00ff00;
+}
+
+.terminal-output {
+  color: #888;
+}
+
+/* Settings Panel */
+.settings-panel {
+  height: 100%;
+  padding: 20px;
+  overflow-y: auto;
+  font-size: 8px;
+}
+
+.settings-section {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #333;
+  background: #111;
+}
+
+.settings-title {
+  color: #00ff00;
+  margin-bottom: 10px;
+  font-size: 10px;
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 4px 0;
+}
+
+.setting-label {
+  color: #888;
+}
+
+.setting-input {
+  background: #000;
+  border: 1px solid #444;
+  color: #00ff00;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  padding: 2px 4px;
+  width: 100px;
+}
+
+.setting-select {
+  background: #000;
+  border: 1px solid #444;
+  color: #00ff00;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  padding: 2px 4px;
+}
+
+/* Animations */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes glow {
+  from { text-shadow: 2px 2px 0px #008800, 0 0 5px #00ff00; }
+  to { text-shadow: 2px 2px 0px #008800, 0 0 20px #00ff00, 0 0 30px #00ff00; }
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #111;
+  border: 1px solid #333;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #00ff00;
+  border: 1px solid #008800;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00cc00;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .header-right {
+    flex-wrap: wrap;
+  }
+  
+  .sidebar {
+    width: 200px;
+  }
+  
+  .pixel-title {
+    font-size: 16px;
+  }
+  
+  .app-title {
+    font-size: 12px;
+  }
+}

@@ -1,0 +1,90 @@
+use notify::{Watcher, RecursiveMode, Event, EventKind};
+use std::path::Path;
+use std::sync::mpsc;
+use tokio::sync::mpsc as tokio_mpsc;
+use log::{info, error};
+
+#[derive(Debug)]
+pub struct FileWatcher {
+    watcher: Option<notify::RecommendedWatcher>,
+    event_sender: Option<tokio_mpsc::UnboundedSender<FileEvent>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FileEvent {
+    pub path: String,
+    pub event_type: FileEventType,
+}
+
+#[derive(Debug, Clone)]
+pub enum FileEventType {
+    Created,
+    Modified,
+    Deleted,
+    Renamed,
+}
+
+impl FileWatcher {
+    pub fn new() -> Self {
+        Self {
+            watcher: None,
+            event_sender: None,
+        }
+    }
+
+    pub async fn start_watching(&mut self, path: &str) -> Result<tokio_mpsc::UnboundedReceiver<FileEvent>, Box<dyn std::error::Error>> {
+        let (tx, rx) = tokio_mpsc::unbounded_channel();
+        self.event_sender = Some(tx.clone());
+
+        let (sync_tx, sync_rx) = mpsc::channel();
+        
+        let mut watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
+            match res {
+                Ok(event) => {
+                    if let Err(e) = sync_tx.send(event) {
+                        error!("Failed to send file event: {}", e);
+                    }
+                }
+                Err(e) => error!("File watcher error: {}", e),
+            }
+        })?;
+
+        watcher.watch(Path::new(path), RecursiveMode::Recursive)?;
+        self.watcher = Some(watcher);
+
+        // Spawn task to process file events
+        let tx_clone = tx.clone();
+        tokio::spawn(async move {
+            while let Ok(event) = sync_rx.recv() {
+                for path in event.paths {
+                    let event_type = match event.kind {
+                        EventKind::Create(_) => FileEventType::Created,
+                        EventKind::Modify(_) => FileEventType::Modified,
+                        EventKind::Remove(_) => FileEventType::Deleted,
+                        EventKind::Other => FileEventType::Renamed,
+                        _ => continue,
+                    };
+
+                    let file_event = FileEvent {
+                        path: path.to_string_lossy().to_string(),
+                        event_type,
+                    };
+
+                    if let Err(e) = tx_clone.send(file_event) {
+                        error!("Failed to send file event to async channel: {}", e);
+                        break;
+                    }
+                }
+            }
+        });
+
+        info!("Started watching directory: {}", path);
+        Ok(rx)
+    }
+
+    pub fn stop_watching(&mut self) {
+        self.watcher = None;
+        self.event_sender = None;
+        info!("Stopped file watcher");
+    }
+}
