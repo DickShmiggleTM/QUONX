@@ -1,93 +1,238 @@
+import React, { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
-
-import React from 'react';
-import { ModelSettings, RoleModels } from '../types.ts';
-
-interface SettingsPanelProps {
-  settings: ModelSettings;
-  onSettingsChange: (newSettings: ModelSettings) => void;
-  roleModels: RoleModels;
-  onRoleModelsChange: (newRoles: RoleModels) => void;
-  availableModels: string[];
+interface ModelSettings {
+  chatModel: string;
+  codeModel: string;
+  reasonerModel: string;
+  nGpuLayers: number;
+  contextSize: number;
+  temperature: number;
+  maxTokens: number;
 }
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettingsChange, roleModels, onRoleModelsChange, availableModels }) => {
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    onSettingsChange({
-      ...settings,
-      [name as keyof ModelSettings]: e.target.type === 'range' ? parseFloat(value) : value,
+export const SettingsPanel: React.FC = () => {
+  const [settings, setSettings] = useState<ModelSettings>({
+    chatModel: '',
+    codeModel: '',
+    reasonerModel: '',
+    nGpuLayers: 0,
+    contextSize: 2048,
+    temperature: 0.7,
+    maxTokens: 512
+  });
+
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const models = await invoke<string[]>('get_available_models');
+      setAvailableModels(models);
+      
+      // Load saved settings from localStorage or backend
+      const savedSettings = localStorage.getItem('quonx-settings');
+      if (savedSettings) {
+        setSettings(JSON.parse(savedSettings));
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveSettings = () => {
+    localStorage.setItem('quonx-settings', JSON.stringify(settings));
+    // Also save to backend
+    invoke('save_settings', { settings });
+  };
+
+  const handleSettingChange = (key: keyof ModelSettings, value: string | number) => {
+    setSettings(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const resetToDefaults = () => {
+    setSettings({
+      chatModel: '',
+      codeModel: '',
+      reasonerModel: '',
+      nGpuLayers: 0,
+      contextSize: 2048,
+      temperature: 0.7,
+      maxTokens: 512
     });
   };
 
-  const handleRoleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    onRoleModelsChange({
-      ...roleModels,
-      [name]: value,
-    });
-  };
-
-  // FIX: Use a specific string literal union for 'name' to satisfy TypeScript's expectations for DOM element attributes.
-  const Slider: React.FC<{ name: 'temperature' | 'topP' | 'topK'; label: string; min: number; max: number; step: number; }> = ({ name, label, min, max, step }) => (
-     <div className="flex flex-col mb-4">
-        <label htmlFor={name} className="text-xs mb-1 flex justify-between">
-          <span>{label}</span>
-          <span>{settings[name]}</span>
-        </label>
-        <input
-          type="range"
-          id={name}
-          name={name}
-          min={min}
-          max={max}
-          step={step}
-          value={settings[name]}
-          onChange={handleInputChange}
-          className="w-full"
-        />
+  if (isLoading) {
+    return (
+      <div className="settings-panel">
+        <div className="loading-indicator">Loading settings...</div>
       </div>
-  );
-
-  // FIX: Use a specific string literal union for 'role' to avoid 'string | number | symbol' type issues.
-  const ModelSelector: React.FC<{ role: 'chat' | 'code' | 'reasoner'; label: string }> = ({ role, label }) => (
-    <div className="mb-3">
-      <label htmlFor={`${role}-model`} className="text-xs mb-1 block">{label}</label>
-      <select
-        id={`${role}-model`}
-        name={role}
-        value={roleModels[role] || ''}
-        onChange={handleRoleModelChange}
-        className="w-full bg-black border border-green-700 p-1"
-        disabled={availableModels.length === 0}
-      >
-        {availableModels.length > 0 ? (
-          availableModels.map(model => (
-            <option key={model} value={model}>{model}</option>
-          ))
-        ) : (
-          <option>No models found in /models</option>
-        )}
-      </select>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="bg-black/50 border border-green-800 p-2 overflow-y-auto h-full">
-      <h2 className="text-sm mb-2 border-b-2 border-green-800">SETTINGS</h2>
-      <div className="text-xs">
-          <ModelSelector role="chat" label="Chat Model" />
-          <ModelSelector role="code" label="Code Model" />
-          <ModelSelector role="reasoner" label="Reasoner Model" />
-          
-          <div className="border-t border-green-800 my-3"></div>
+    <div className="settings-panel">
+      <div className="settings-header">
+        <h2>QUONX IDE SETTINGS</h2>
+        <div className="settings-actions">
+          <button onClick={saveSettings} className="save-button">
+            SAVE
+          </button>
+          <button onClick={resetToDefaults} className="reset-button">
+            RESET
+          </button>
+        </div>
+      </div>
 
-          <Slider name="temperature" label="Temperature" min={0} max={1} step={0.1} />
-          <Slider name="topP" label="Top-P" min={0} max={1} step={0.05} />
-          <Slider name="topK" label="Top-K" min={1} max={100} step={1} />
+      <div className="settings-sections">
+        <div className="settings-section">
+          <h3>AI MODELS</h3>
+          
+          <div className="setting-item">
+            <label>Chat Model:</label>
+            <select
+              value={settings.chatModel}
+              onChange={(e) => handleSettingChange('chatModel', e.target.value)}
+              className="setting-select"
+            >
+              <option value="">Select Chat Model</option>
+              {availableModels.map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="setting-item">
+            <label>Code Model:</label>
+            <select
+              value={settings.codeModel}
+              onChange={(e) => handleSettingChange('codeModel', e.target.value)}
+              className="setting-select"
+            >
+              <option value="">Select Code Model</option>
+              {availableModels.map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="setting-item">
+            <label>Reasoner Model:</label>
+            <select
+              value={settings.reasonerModel}
+              onChange={(e) => handleSettingChange('reasonerModel', e.target.value)}
+              className="setting-select"
+            >
+              <option value="">Select Reasoner Model</option>
+              {availableModels.map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="settings-section">
+          <h3>PERFORMANCE</h3>
+          
+          <div className="setting-item">
+            <label>GPU Layers:</label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={settings.nGpuLayers}
+              onChange={(e) => handleSettingChange('nGpuLayers', parseInt(e.target.value) || 0)}
+              className="setting-input"
+            />
+            <span className="setting-description">
+              Number of layers to offload to GPU (0 = CPU only)
+            </span>
+          </div>
+
+          <div className="setting-item">
+            <label>Context Size:</label>
+            <input
+              type="number"
+              min="512"
+              max="8192"
+              step="512"
+              value={settings.contextSize}
+              onChange={(e) => handleSettingChange('contextSize', parseInt(e.target.value) || 2048)}
+              className="setting-input"
+            />
+          </div>
+        </div>
+
+        <div className="settings-section">
+          <h3>GENERATION</h3>
+          
+          <div className="setting-item">
+            <label>Temperature:</label>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={settings.temperature}
+              onChange={(e) => handleSettingChange('temperature', parseFloat(e.target.value))}
+              className="setting-range"
+            />
+            <span className="setting-value">{settings.temperature}</span>
+          </div>
+
+          <div className="setting-item">
+            <label>Max Tokens:</label>
+            <input
+              type="number"
+              min="1"
+              max="4096"
+              value={settings.maxTokens}
+              onChange={(e) => handleSettingChange('maxTokens', parseInt(e.target.value) || 512)}
+              className="setting-input"
+            />
+          </div>
+        </div>
+
+        <div className="settings-section">
+          <h3>SYSTEM</h3>
+          
+          <div className="setting-item">
+            <label>Auto-save:</label>
+            <input
+              type="checkbox"
+              defaultChecked
+              className="setting-checkbox"
+            />
+          </div>
+
+          <div className="setting-item">
+            <label>File Watching:</label>
+            <input
+              type="checkbox"
+              defaultChecked
+              className="setting-checkbox"
+            />
+          </div>
+
+          <div className="setting-item">
+            <label>AI Suggestions:</label>
+            <input
+              type="checkbox"
+              defaultChecked
+              className="setting-checkbox"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
 };
-
-export default SettingsPanel;
