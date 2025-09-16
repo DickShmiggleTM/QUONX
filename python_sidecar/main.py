@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""
-Quonx IDE Python Sidecar
-FastAPI server for AI inference using llama.cpp
+"""Quonx IDE Python Sidecar.
+
+This script provides a FastAPI server for AI inference using llama.cpp.
+It is designed to be used as a sidecar for the Quonx IDE, providing AI
+capabilities such as code completion and generation.
 """
 
 import argparse
@@ -24,17 +26,41 @@ logger = logging.getLogger(__name__)
 
 # Request/Response models
 class InferenceRequest(BaseModel):
+    """Represents a request for AI inference.
+
+    Attributes:
+        prompt: The text prompt to send to the model.
+        model: The name of the model to use for inference.
+        max_tokens: The maximum number of tokens to generate.
+        temperature: The temperature to use for sampling.
+    """
     prompt: str
     model: str
     max_tokens: Optional[int] = 512
     temperature: Optional[float] = 0.7
 
 class InferenceResponse(BaseModel):
+    """Represents the response from an AI inference request.
+
+    Attributes:
+        response: The generated text from the model.
+        tokens_used: The number of tokens used for the inference.
+        model_used: The name of the model that was used.
+    """
     response: str
     tokens_used: Optional[int] = None
     model_used: str
 
 class ModelInfo(BaseModel):
+    """Represents information about an available model.
+
+    Attributes:
+        name: The name of the model file.
+        path: The path to the model file.
+        size: The size of the model file in bytes.
+        format: The format of the model (e.g., GGUF).
+        parameters: The number of parameters in the model.
+    """
     name: str
     path: str
     size: int
@@ -57,7 +83,11 @@ app.add_middleware(
 )
 
 def check_llama_cpp():
-    """Check if llama-cpp-python is available"""
+    """Checks if the llama-cpp-python library is installed.
+
+    This function attempts to import the `llama_cpp` library and sets the
+    `llama_cpp_available` global variable accordingly.
+    """
     global llama_cpp_available
     try:
         import llama_cpp
@@ -68,7 +98,14 @@ def check_llama_cpp():
         llama_cpp_available = False
 
 def discover_models() -> List[ModelInfo]:
-    """Discover available GGUF models in the models directory"""
+    """Discovers available GGUF models in the models directory.
+
+    This function scans the `models_dir` for files with the `.gguf` extension
+    and returns a list of `ModelInfo` objects.
+
+    Returns:
+        A list of `ModelInfo` objects representing the discovered models.
+    """
     models = []
     
     if not models_dir.exists():
@@ -92,7 +129,14 @@ def discover_models() -> List[ModelInfo]:
     return models
 
 def load_model(model_path: str) -> bool:
-    """Load a model using llama-cpp-python"""
+    """Loads a model using llama-cpp-python.
+
+    Args:
+        model_path: The path to the model file to load.
+
+    Returns:
+        True if the model was loaded successfully, False otherwise.
+    """
     global current_model
     
     if not llama_cpp_available:
@@ -124,7 +168,14 @@ def load_model(model_path: str) -> bool:
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Provides a health check endpoint for the server.
+
+    This endpoint can be used to monitor the status of the server and its
+    dependencies.
+
+    Returns:
+        A dictionary containing the health status of the server.
+    """
     return {
         "status": "healthy",
         "llama_cpp_available": llama_cpp_available,
@@ -133,13 +184,33 @@ async def health_check():
 
 @app.get("/models")
 async def get_models():
-    """Get list of available models"""
+    """Gets the list of available models.
+
+    This endpoint discovers and returns a list of all available models
+    in the `models_dir`.
+
+    Returns:
+        A dictionary containing a list of available models.
+    """
     models = discover_models()
     return {"models": [model.dict() for model in models]}
 
 @app.post("/models/load")
 async def load_model_endpoint(model_name: str):
-    """Load a specific model"""
+    """Loads a specific model.
+
+    This endpoint loads the model specified by `model_name` into memory,
+    making it available for inference.
+
+    Args:
+        model_name: The name of the model to load.
+
+    Returns:
+        A dictionary indicating the status of the model loading operation.
+
+    Raises:
+        HTTPException: If the model is not found or fails to load.
+    """
     model_path = models_dir / model_name
     if not model_path.exists():
         raise HTTPException(status_code=404, detail="Model not found")
@@ -151,7 +222,23 @@ async def load_model_endpoint(model_name: str):
 
 @app.post("/inference", response_model=InferenceResponse)
 async def inference(request: InferenceRequest):
-    """Perform AI inference"""
+    """Performs AI inference on the loaded model.
+
+    This endpoint takes a prompt and other parameters, performs inference
+    using the currently loaded model, and returns the generated text.
+
+    Args:
+        request: An `InferenceRequest` object containing the prompt and other
+                 parameters.
+
+    Returns:
+        An `InferenceResponse` object containing the generated text and other
+        information.
+
+    Raises:
+        HTTPException: If `llama-cpp-python` is not available, no model is
+                     loaded, or if an error occurs during inference.
+    """
     if not llama_cpp_available:
         raise HTTPException(status_code=503, detail="llama-cpp-python not available")
     
@@ -182,7 +269,14 @@ async def inference(request: InferenceRequest):
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
+    """Provides a root endpoint for the server.
+
+    This endpoint returns basic information about the AI sidecar, including
+    its name, version, and a list of available endpoints.
+
+    Returns:
+        A dictionary containing basic information about the server.
+    """
     return {
         "message": "Quonx IDE AI Sidecar",
         "version": "1.0.0",
@@ -195,6 +289,11 @@ async def root():
     }
 
 def main():
+    """The main entry point for the AI sidecar server.
+
+    This function parses command-line arguments, checks for dependencies,
+    discovers available models, and starts the FastAPI server.
+    """
     parser = argparse.ArgumentParser(description="Quonx IDE AI Sidecar")
     parser.add_argument("--port", type=int, default=8000, help="Port to run the server on")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to bind to")

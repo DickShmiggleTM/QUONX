@@ -1,6 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
+/**
+ * @function Terminal
+ * @description A component that provides a terminal interface.
+ * @returns {JSX.Element} The rendered Terminal component.
+ */
 export const Terminal: React.FC = () => {
   const [output, setOutput] = useState<string[]>([
     'Quonx IDE Terminal v1.0.0',
@@ -19,10 +24,22 @@ export const Terminal: React.FC = () => {
     }
   }, [output]);
 
+  /**
+   * @function addOutput
+   * @description Adds a line of output to the terminal.
+   * @param {string} line - The line to add to the output.
+   * @returns {void}
+   */
   const addOutput = (line: string) => {
     setOutput(prev => [...prev, line]);
   };
 
+  /**
+   * @function executeCommand
+   * @description Executes a command in the terminal.
+   * @param {string} command - The command to execute.
+   * @returns {Promise<void>}
+   */
   const executeCommand = async (command: string) => {
     const trimmedCommand = command.trim();
     if (!trimmedCommand) return;
@@ -108,6 +125,12 @@ export const Terminal: React.FC = () => {
     addOutput(''); // Add empty line after command
   };
 
+  /**
+   * @function handleKeyDown
+   * @description Handles key down events in the terminal input.
+   * @param {React.KeyboardEvent} e - The keyboard event.
+   * @returns {void}
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case 'Enter':
@@ -146,6 +169,12 @@ export const Terminal: React.FC = () => {
     }
   };
 
+  /**
+   * @function handleInputChange
+   * @description Handles changes to the terminal input.
+   * @param {React.ChangeEvent<HTMLInputElement>} e - The change event.
+   * @returns {void}
+   */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCurrentInput(e.target.value);
   };

@@ -1,10 +1,17 @@
-// FIX: Add .ts extension to import path. This file was created to resolve "not a module" errors.
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
 // Per guidelines, initialize with apiKey from environment variables.
 // The key's availability is a hard requirement and handled externally.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+/**
+ * @interface GenerateContentOptions
+ * @description Options for generating content with the Gemini API.
+ * @property {string} model - The name of the model to use.
+ * @property {string} prompt - The prompt to send to the model.
+ * @property {string} [systemInstruction] - An optional system instruction.
+ * @property {boolean} [json] - Whether to parse the response as JSON.
+ */
 interface GenerateContentOptions {
     model: string;
     prompt: string;
@@ -13,9 +20,12 @@ interface GenerateContentOptions {
 }
 
 /**
- * Generates content using the Gemini API.
+ * @function generateContent
+ * @description Generates content using the Gemini API.
  * This is a wrapper to centralize API calls.
  * If 'json' is true, it attempts to parse the response as JSON.
+ * @param {GenerateContentOptions} options - The options for generating content.
+ * @returns {Promise<any>} The generated content, or an error message.
  */
 export const generateContent = async ({ model, prompt, systemInstruction, json }: GenerateContentOptions): Promise<any> => {
     try {

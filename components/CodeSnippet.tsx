@@ -1,14 +1,31 @@
 import React, { useState, useCallback } from 'react';
 import { ClipboardIcon, CheckIcon } from './icons.tsx';
 
+/**
+ * @interface CodeSnippetProps
+ * @description Props for the CodeSnippet component.
+ * @property {string} language - The programming language of the code snippet.
+ * @property {string} code - The code to be displayed.
+ */
 interface CodeSnippetProps {
   language: string;
   code: string;
 }
 
+/**
+ * @function CodeSnippet
+ * @description A component for displaying a code snippet with a copy button.
+ * @param {CodeSnippetProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered CodeSnippet component.
+ */
 const CodeSnippet: React.FC<CodeSnippetProps> = ({ language, code }) => {
   const [copied, setCopied] = useState(false);
 
+  /**
+   * @function handleCopy
+   * @description Copies the code snippet to the clipboard.
+   * @returns {void}
+   */
   const handleCopy = useCallback(() => {
     if (navigator.clipboard) {
         navigator.clipboard.writeText(code).then(() => {

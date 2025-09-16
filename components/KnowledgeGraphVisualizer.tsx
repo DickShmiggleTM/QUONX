@@ -1,6 +1,16 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { GraphNode, Edge } from '../types.ts';
 
+/**
+ * @interface NodePosition
+ * @description Represents the position and data of a node in the graph.
+ * @property {string} id - The unique ID of the node.
+ * @property {number} x - The x-coordinate of the node.
+ * @property {number} y - The y-coordinate of the node.
+ * @property {number} [fx] - The fixed x-coordinate of the node (for dragging).
+ * @property {number} [fy] - The fixed y-coordinate of the node (for dragging).
+ * @property {GraphNode} node - The graph node data.
+ */
 interface NodePosition {
     id: string;
     x: number;
@@ -10,6 +20,12 @@ interface NodePosition {
     node: GraphNode;
 }
 
+/**
+ * @function getNodeColor
+ * @description Gets the color for a node based on its type.
+ * @param {GraphNode['type']} type - The type of the node.
+ * @returns {string} The color of the node.
+ */
 const getNodeColor = (type: GraphNode['type']) => {
     switch (type) {
         case 'file': return '#2E8B57'; // SeaGreen
@@ -23,6 +39,12 @@ const getNodeColor = (type: GraphNode['type']) => {
     }
 };
 
+/**
+ * @function KnowledgeGraphVisualizer
+ * @description A component for visualizing a knowledge graph.
+ * @param {{ nodes: GraphNode[], edges: Edge[] }} props - The props for the component.
+ * @returns {JSX.Element} The rendered KnowledgeGraphVisualizer component.
+ */
 const KnowledgeGraphVisualizer: React.FC<{ nodes: GraphNode[], edges: Edge[] }> = ({ nodes, edges }) => {
     const svgRef = useRef<SVGSVGElement>(null);
     const [positions, setPositions] = useState<Map<string, NodePosition>>(new Map());
@@ -69,6 +91,11 @@ const KnowledgeGraphVisualizer: React.FC<{ nodes: GraphNode[], edges: Edge[] }> 
     }, [filteredNodes]);
 
     useEffect(() => {
+        /**
+         * @function simulation
+         * @description Runs a single step of the physics simulation for the graph.
+         * @returns {void}
+         */
         const simulation = () => {
             const width = svgRef.current?.clientWidth || 500;
             const height = svgRef.current?.clientHeight || 500;
@@ -123,6 +150,12 @@ const KnowledgeGraphVisualizer: React.FC<{ nodes: GraphNode[], edges: Edge[] }> 
         return () => clearInterval(interval);
     }, [edges, draggedNode]);
 
+    /**
+     * @function handleMouseDown
+     * @description Handles the mouse down event on a node to start dragging.
+     * @param {string} id - The ID of the node being dragged.
+     * @returns {void}
+     */
     const handleMouseDown = (id: string) => {
         setDraggedNode(id);
         setPositions(prev => {
@@ -136,6 +169,12 @@ const KnowledgeGraphVisualizer: React.FC<{ nodes: GraphNode[], edges: Edge[] }> 
         });
     };
 
+    /**
+     * @function handleMouseMove
+     * @description Handles the mouse move event to drag a node.
+     * @param {React.MouseEvent} e - The mouse event.
+     * @returns {void}
+     */
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!draggedNode || !svgRef.current) return;
         const rect = svgRef.current.getBoundingClientRect();
@@ -152,6 +191,11 @@ const KnowledgeGraphVisualizer: React.FC<{ nodes: GraphNode[], edges: Edge[] }> 
         });
     };
 
+    /**
+     * @function handleMouseUp
+     * @description Handles the mouse up event to stop dragging a node.
+     * @returns {void}
+     */
     const handleMouseUp = () => {
          setPositions(prev => {
             const newPos = new Map(prev);

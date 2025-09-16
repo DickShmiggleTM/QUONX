@@ -1,15 +1,26 @@
 import React from 'react';
-// FIX: Added .tsx extension to the import path.
 import { LintingError } from '../types.ts';
-// FIX: Added .tsx extension to the import path.
 import { BugIcon } from './icons.tsx';
 
+/**
+ * @interface LintingPanelProps
+ * @description Props for the LintingPanel component.
+ * @property {LintingError[]} errors - A list of linting errors.
+ * @property {() => void} onClearErrors - Function to clear the linting errors.
+ * @property {() => void} onRunLint - Function to run the linter.
+ */
 interface LintingPanelProps {
   errors: LintingError[];
   onClearErrors: () => void;
   onRunLint: () => void;
 }
 
+/**
+ * @function LintingPanel
+ * @description A component for displaying linting errors.
+ * @param {LintingPanelProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered LintingPanel component.
+ */
 const LintingPanel: React.FC<LintingPanelProps> = ({ errors, onClearErrors, onRunLint }) => {
   return (
     <div className="bg-black/50 border border-green-800 p-2 overflow-y-auto h-full flex flex-col text-xs">

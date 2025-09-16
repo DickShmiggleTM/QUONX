@@ -1,7 +1,17 @@
 import { DebuggerState } from '../types.ts';
 
+/**
+ * @callback UpdateStateCallback
+ * @description A callback function to update the debugger state.
+ * @param {(prevState: DebuggerState) => DebuggerState} updater - A function that takes the previous state and returns the new state.
+ * @returns {void}
+ */
 type UpdateStateCallback = (updater: (prevState: DebuggerState) => DebuggerState) => void;
 
+/**
+ * @class DebuggerService
+ * @description A service for simulating a debugger.
+ */
 export class DebuggerService {
     private updateState: UpdateStateCallback;
     private executionInterval: number | null = null;
@@ -9,10 +19,22 @@ export class DebuggerService {
     private breakpoints: Map<number, string> = new Map();
     private currentFilePath: string | null = null;
 
+    /**
+     * @constructor
+     * @param {UpdateStateCallback} updateState - A callback function to update the debugger state.
+     */
     constructor(updateState: UpdateStateCallback) {
         this.updateState = updateState;
     }
 
+    /**
+     * @function start
+     * @description Starts the debugger.
+     * @param {string} code - The code to debug.
+     * @param {Map<number, string>} breakpoints - A map of breakpoints.
+     * @param {string | null} filePath - The path of the file being debugged.
+     * @returns {void}
+     */
     public start(code: string, breakpoints: Map<number, string>, filePath: string | null) {
         this.stop();
         this.codeLines = code.split('\n');
@@ -29,6 +51,11 @@ export class DebuggerService {
         this.resume();
     }
 
+    /**
+     * @function stop
+     * @description Stops the debugger.
+     * @returns {void}
+     */
     public stop() {
         if (this.executionInterval) {
             clearInterval(this.executionInterval);
@@ -44,11 +71,21 @@ export class DebuggerService {
         }));
     }
     
+    /**
+     * @function resume
+     * @description Resumes the debugger.
+     * @returns {void}
+     */
     public resume() {
         this.updateState(prev => ({ ...prev, isPaused: false }));
         this.executionInterval = setInterval(() => this.stepOver(), 500);
     }
     
+    /**
+     * @function pause
+     * @description Pauses the debugger.
+     * @returns {void}
+     */
     public pause() {
         if (this.executionInterval) {
             clearInterval(this.executionInterval);
@@ -57,6 +94,11 @@ export class DebuggerService {
         this.updateState(prev => ({ ...prev, isPaused: true }));
     }
 
+    /**
+     * @function stepOver
+     * @description Steps over the current line of code.
+     * @returns {void}
+     */
     public stepOver() {
         this.updateState(prev => {
             if (!prev.isActive || prev.currentLine === null || prev.currentLine >= this.codeLines.length) {
@@ -99,10 +141,24 @@ export class DebuggerService {
         });
     }
 
+    /**
+     * @function updateBreakpoints
+     * @description Updates the breakpoints.
+     * @param {Map<number, string>} newBreakpoints - The new breakpoints.
+     * @returns {void}
+     */
     public updateBreakpoints(newBreakpoints: Map<number, string>) {
         this.breakpoints = newBreakpoints;
     }
 
+    /**
+     * @function evaluateCondition
+     * @description Evaluates a breakpoint condition.
+     * @param {string} condition - The condition to evaluate.
+     * @param {Record<string, any>} scope - The current scope.
+     * @returns {boolean} Whether the condition is met.
+     * @private
+     */
     private evaluateCondition(condition: string, scope: Record<string, any>): boolean {
         try {
             // Create a function with the scope variables in its context

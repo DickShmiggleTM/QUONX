@@ -1,11 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
+/**
+ * @interface EditorProps
+ * @description Props for the Editor component.
+ * @property {string | null} filePath - The path of the file to be edited.
+ * @property {(path: string) => void} onFileChange - Function to handle file changes.
+ */
 interface EditorProps {
   filePath: string | null;
   onFileChange: (path: string) => void;
 }
 
+/**
+ * @function Editor
+ * @description A component that provides a text editor for editing files.
+ * @param {EditorProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered Editor component.
+ */
 export const Editor: React.FC<EditorProps> = ({ filePath, onFileChange }) => {
   const [content, setContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -18,6 +30,12 @@ export const Editor: React.FC<EditorProps> = ({ filePath, onFileChange }) => {
     }
   }, [filePath]);
 
+  /**
+   * @function loadFileContent
+   * @description Loads the content of a file from the backend.
+   * @param {string} path - The path of the file to load.
+   * @returns {Promise<void>}
+   */
   const loadFileContent = async (path: string) => {
     setIsLoading(true);
     try {
@@ -32,11 +50,23 @@ export const Editor: React.FC<EditorProps> = ({ filePath, onFileChange }) => {
     }
   };
 
+  /**
+   * @function handleContentChange
+   * @description Handles changes to the content of the editor.
+   * @param {string} newContent - The new content of the editor.
+   * @returns {void}
+   */
   const handleContentChange = (newContent: string) => {
     setContent(newContent);
     // Auto-save functionality would go here
   };
 
+  /**
+   * @function getLanguageFromPath
+   * @description Determines the programming language from a file path.
+   * @param {string | null} path - The path of the file.
+   * @returns {string} The name of the language.
+   */
   const getLanguageFromPath = (path: string | null) => {
     if (!path) return 'text';
     

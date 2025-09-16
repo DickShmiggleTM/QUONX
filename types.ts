@@ -1,13 +1,17 @@
-// FIX: Removed circular dependency import. FileNode is defined and exported from this file.
-
-// From useFileSystem.ts
+/**
+ * @interface FileNode
+ * @description Represents a file or directory in the file system.
+ */
 export interface FileNode {
   name: string;
   content?: string;
   children?: FileNode[];
 }
 
-// From codebaseAnalyzer.ts, graphDB.ts, memoryService.ts
+/**
+ * @interface GraphNode
+ * @description Represents a node in the knowledge graph.
+ */
 export interface GraphNode {
     id: string;
     type: 'file' | 'function-def' | 'class-def' | 'call' | 'user-prompt' | 'ai-response' | 'file-edit' | string; // Allow string for custom types
@@ -16,20 +20,35 @@ export interface GraphNode {
     properties: Record<string, any>;
 }
 
+/**
+ * @interface Edge
+ * @description Represents an edge in the knowledge graph.
+ */
 export interface Edge {
     sourceId: string;
     targetId: string;
     type: string;
 }
 
-// From SettingsPanel.tsx
+/**
+ * @interface ModelSettings
+ * @description Represents the settings for the AI models.
+ */
 export interface ModelSettings {
   temperature: number;
   topP: number;
   topK: number;
 }
 
+/**
+ * @type Role
+ * @description Represents the role of an AI model.
+ */
 export type Role = 'chat' | 'code' | 'reasoner';
+/**
+ * @interface RoleModels
+ * @description Represents the models assigned to each role.
+ */
 export interface RoleModels {
   chat: string;
   code: string;
@@ -37,7 +56,10 @@ export interface RoleModels {
   [key: string]: string; // To allow indexing with a string
 }
 
-// From pluginService.ts, PluginManagerPanel.tsx
+/**
+ * @interface Plugin
+ * @description Represents a plugin.
+ */
 export interface Plugin {
     name: string;
     version: string;
@@ -47,13 +69,20 @@ export interface Plugin {
     error?: string;
 }
 
+/**
+ * @interface PluginTool
+ * @description Represents a tool provided by a plugin.
+ */
 export interface PluginTool {
     name: string;
     description: string;
     handler: (args: any) => Promise<string> | string;
 }
 
-// From gitService.ts, GitPanel.tsx
+/**
+ * @interface GitStatus
+ * @description Represents the status of the Git repository.
+ */
 export interface GitStatus {
     staged: string[];
     modified: string[];
@@ -61,6 +90,10 @@ export interface GitStatus {
     conflicts: string[];
 }
 
+/**
+ * @interface Commit
+ * @description Represents a Git commit.
+ */
 export interface Commit {
     id: string;
     message: string;
@@ -69,25 +102,39 @@ export interface Commit {
     timestamp: number;
 }
 
+/**
+ * @interface CommitDiff
+ * @description Represents the diff of a commit.
+ */
 export interface CommitDiff {
     added: string[];
     modified: { path: string; diff: string }[];
     deleted: string[];
 }
 
-// From indexingService.ts, IndexingPanel.tsx
+/**
+ * @interface IndexStatus
+ * @description Represents the status of the index.
+ */
 export interface IndexStatus {
     isIndexed: boolean;
     fileCount: number;
 }
 
+/**
+ * @interface SearchResult
+ * @description Represents a search result.
+ */
 export interface SearchResult {
     path: string;
     line: number;
     match: string;
 }
 
-// From swarmService.ts, SwarmPanel.tsx
+/**
+ * @interface SwarmPlanStep
+ * @description Represents a step in a swarm plan.
+ */
 export interface SwarmPlanStep {
     step: number;
     action: string;
@@ -101,8 +148,16 @@ export interface SwarmPlanStep {
     result?: string;
 }
 
+/**
+ * @type SwarmStatus
+ * @description Represents the status of a swarm task.
+ */
 export type SwarmStatus = 'idle' | 'planning' | 'designing' | 'executing' | 'reviewing' | 'testing' | 'documenting' | 'summarizing' | 'finished' | 'failed';
 
+/**
+ * @interface SwarmTaskStatus
+ * @description Represents the status of a swarm task.
+ */
 export interface SwarmTaskStatus {
     goal: string;
     status: SwarmStatus;
@@ -110,8 +165,16 @@ export interface SwarmTaskStatus {
     logs: { role: AgentRole | string; message: string; timestamp: string }[];
 }
 
+/**
+ * @type AgentRole
+ * @description Represents the role of an agent in the swarm.
+ */
 export type AgentRole = 'Planner' | 'Designer' | 'CodeAgent' | 'UIAgent' | 'ReviewerAgent' | 'TestingAgent' | 'DocumentAgent' | 'SynthesizerAgent' | 'Coordinator' | string;
 
+/**
+ * @interface Agent
+ * @description Represents an agent in the swarm.
+ */
 export interface Agent {
     role: AgentRole;
     description: string;
@@ -120,14 +183,20 @@ export interface Agent {
     isCustom: boolean;
 }
 
-// From AIAgentPanel.tsx
+/**
+ * @interface Message
+ * @description Represents a message in the chat.
+ */
 export interface Message {
     sender: 'user' | 'agent';
     text: string;
     thought?: string;
 }
 
-// From lintingService.ts
+/**
+ * @interface LintingError
+ * @description Represents a linting error.
+ */
 export interface LintingError {
     line: number;
     column: number;
@@ -135,7 +204,10 @@ export interface LintingError {
     severity: 'error' | 'warning';
 }
 
-// From debuggerService.ts
+/**
+ * @interface DebuggerState
+ * @description Represents the state of the debugger.
+ */
 export interface DebuggerState {
     isActive: boolean;
     isPaused: boolean;

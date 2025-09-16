@@ -1,6 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CloseIcon } from './icons.tsx';
 
+/**
+ * @interface DraggableWindowProps
+ * @description Props for the DraggableWindow component.
+ * @property {string} title - The title of the window.
+ * @property {React.ReactNode} children - The content of the window.
+ * @property {boolean} isOpen - Whether the window is open.
+ * @property {() => void} onClose - Function to close the window.
+ * @property {{ x: number; y: number }} [initialPosition] - The initial position of the window.
+ * @property {number} zIndex - The z-index of the window.
+ * @property {() => void} onFocus - Function to bring the window to the front.
+ */
 interface DraggableWindowProps {
   title: string;
   children: React.ReactNode;
@@ -11,12 +22,24 @@ interface DraggableWindowProps {
   onFocus: () => void;
 }
 
+/**
+ * @function DraggableWindow
+ * @description A component that creates a draggable window.
+ * @param {DraggableWindowProps} props - The props for the component.
+ * @returns {JSX.Element | null} The rendered DraggableWindow component, or null if it's not open.
+ */
 const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, children, isOpen, onClose, initialPosition = { x: 150, y: 150 }, zIndex, onFocus }) => {
   const [position, setPosition] = useState(initialPosition);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const windowRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * @function handleMouseDown
+   * @description Handles the mouse down event on the window header to start dragging.
+   * @param {React.MouseEvent<HTMLDivElement>} e - The mouse event.
+   * @returns {void}
+   */
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // Prevent dragging when clicking on buttons inside the header
     if ((e.target as HTMLElement).closest('button')) return;
@@ -34,6 +57,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, children, isOp
   };
 
   useEffect(() => {
+    /**
+     * @function handleGlobalMouseMove
+     * @description Handles the global mouse move event to drag the window.
+     * @param {MouseEvent} e - The mouse event.
+     * @returns {void}
+     */
     const handleGlobalMouseMove = (e: MouseEvent) => {
         if (!isDragging) return;
         setPosition({
@@ -42,6 +71,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({ title, children, isOp
         });
     };
 
+    /**
+     * @function handleGlobalMouseUp
+     * @description Handles the global mouse up event to stop dragging.
+     * @returns {void}
+     */
     const handleGlobalMouseUp = () => {
         setIsDragging(false);
     };

@@ -1,7 +1,13 @@
 import { useState, useCallback } from 'react';
 import { FileNode } from '../types.ts';
 
-// Helper to deeply find and update a node
+/**
+ * @function findNodeByPath
+ * @description Recursively finds a node in a file tree by its path.
+ * @param {FileNode[]} nodes - The file tree to search.
+ * @param {string[]} path - The path to the node to find.
+ * @returns {FileNode | null} The found node, or null if not found.
+ */
 const findNodeByPath = (nodes: FileNode[], path: string[]): FileNode | null => {
   if (path.length === 0) return null;
   const [name, ...rest] = path;
@@ -14,7 +20,13 @@ const findNodeByPath = (nodes: FileNode[], path: string[]): FileNode | null => {
   return null;
 };
 
-// Helper to find parent and the node itself
+/**
+ * @function findParentAndNode
+ * @description Finds a node and its parent in a file tree by its path.
+ * @param {FileNode[]} nodes - The file tree to search.
+ * @param {string[]} path - The path to the node to find.
+ * @returns {{ parent: FileNode | null, node: FileNode | null, index: number }} The parent node, the found node, and the index of the node in its parent's children array.
+ */
 const findParentAndNode = (nodes: FileNode[], path: string[]): { parent: FileNode | null, node: FileNode | null, index: number } => {
     if (path.length === 0) return { parent: null, node: null, index: -1 };
     
@@ -41,6 +53,10 @@ const findParentAndNode = (nodes: FileNode[], path: string[]): { parent: FileNod
     return { parent: null, node: null, index: -1 };
 };
 
+/**
+ * @const initialFiles
+ * @description The initial file system structure.
+ */
 export const initialFiles: FileNode[] = [
   {
     name: 'src',
@@ -82,14 +98,31 @@ export const initialFiles: FileNode[] = [
 ];
 
 
+/**
+ * @function useFileSystem
+ * @description A hook for managing a virtual file system.
+ * @returns {{ files: FileNode[], getFileContent: (path: string) => string | null, updateFileContent: (path: string, content: string) => void, createFile: (path: string) => string | null, createDirectory: (path: string) => string | null, renameNode: (path: string, newName: string) => string | null, deleteNode: (path: string) => boolean, setFiles: React.Dispatch<React.SetStateAction<FileNode[]>>, writeFile: (path: string, content: string) => string | null, listFiles: (path: string) => string[] | null }} An object with the file system state and functions to manipulate it.
+ */
 export const useFileSystem = () => {
   const [files, setFiles] = useState<FileNode[]>(initialFiles);
 
+  /**
+   * @function getFileContent
+   * @description Gets the content of a file.
+   * @param {string} path - The path to the file.
+   * @returns {string | null} The content of the file, or null if not found.
+   */
   const getFileContent = useCallback((path: string): string | null => {
     const node = findNodeByPath(files, path.split('/'));
     return node && node.content !== undefined ? node.content : null;
   }, [files]);
 
+  /**
+   * @function listFiles
+   * @description Lists the files and directories in a directory.
+   * @param {string} path - The path to the directory.
+   * @returns {string[] | null} A list of file and directory names, or null if the path is not a directory.
+   */
   const listFiles = useCallback((path: string): string[] | null => {
       if (path === '' || path === '.') {
           return files.map(n => n.name + (n.children ? '/' : ''));
@@ -102,6 +135,13 @@ export const useFileSystem = () => {
       return null;
   }, [files]);
 
+  /**
+   * @function updateFileContent
+   * @description Updates the content of a file.
+   * @param {string} path - The path to the file.
+   * @param {string} content - The new content of the file.
+   * @returns {void}
+   */
   const updateFileContent = useCallback((path: string, content: string) => {
     setFiles(currentFiles => {
       const newFiles = JSON.parse(JSON.stringify(currentFiles));
@@ -113,6 +153,13 @@ export const useFileSystem = () => {
     });
   }, []);
 
+  /**
+   * @function writeFile
+   * @description Writes content to a file, creating it if it doesn't exist.
+   * @param {string} path - The path to the file.
+   * @param {string} content - The content to write to the file.
+   * @returns {string | null} The path to the file if successful, or null otherwise.
+   */
   const writeFile = useCallback((path: string, content: string): string | null => {
     const pathParts = path.split('/');
     const fileName = pathParts[pathParts.length - 1];
@@ -154,6 +201,12 @@ export const useFileSystem = () => {
     return success ? path : null;
   }, []);
 
+  /**
+   * @function createFile
+   * @description Creates a new file.
+   * @param {string} path - The path to the file to create.
+   * @returns {string | null} The path to the created file, or null if it already exists.
+   */
   const createFile = useCallback((path: string): string | null => {
     const pathParts = path.split('/');
     const fileName = pathParts[pathParts.length - 1];
@@ -189,6 +242,12 @@ export const useFileSystem = () => {
     return success ? path : null;
   }, []);
 
+  /**
+   * @function createDirectory
+   * @description Creates a new directory.
+   * @param {string} path - The path to the directory to create.
+   * @returns {string | null} The path to the created directory, or null if it already exists.
+   */
   const createDirectory = useCallback((path: string): string | null => {
     const pathParts = path.split('/');
     const folderName = pathParts[pathParts.length - 1];
@@ -224,6 +283,13 @@ export const useFileSystem = () => {
     return success ? path : null;
   }, []);
 
+  /**
+   * @function renameNode
+   * @description Renames a file or directory.
+   * @param {string} path - The path to the node to rename.
+   * @param {string} newName - The new name of the node.
+   * @returns {string | null} The new path of the node, or null if the rename failed.
+   */
   const renameNode = useCallback((path: string, newName: string): string | null => {
     if (!newName || newName.includes('/')) {
       console.error("Invalid name:", newName);
@@ -255,6 +321,12 @@ export const useFileSystem = () => {
     return success ? newPath : null;
   }, []);
 
+  /**
+   * @function deleteNode
+   * @description Deletes a file or directory.
+   * @param {string} path - The path to the node to delete.
+   * @returns {boolean} Whether the deletion was successful.
+   */
   const deleteNode = useCallback((path: string): boolean => {
     let success = false;
     setFiles(currentFiles => {

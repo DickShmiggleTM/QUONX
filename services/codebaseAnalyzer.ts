@@ -1,33 +1,53 @@
-// FIX: Added .ts extension to the import path.
 import { FileNode, GraphNode } from '../types.ts';
-// FIX: Added .ts extension to the import path.
 import { GraphDB } from './graphDB.ts';
 
+/**
+ * @interface ParsedQuery
+ * @description Represents a parsed search query.
+ * @property {'find-definition' | 'find-calls' | 'find-callers-of-function' | 'find-callers-of-semantic-target' | 'general-search'} intent - The intent of the query.
+ * @property {string} target - The target of the query.
+ */
 interface ParsedQuery {
   intent: 'find-definition' | 'find-calls' | 'find-callers-of-function' | 'find-callers-of-semantic-target' | 'general-search';
   target: string;
 }
 
 /**
- * The Semantic Layer of the IDE.
+ * @class CodebaseAnalyzer
+ * @description The Semantic Layer of the IDE.
  * It analyzes file content and uses a GraphDB instance to build and maintain
  * a Code Knowledge Graph, enabling sophisticated structural queries.
  */
 export class CodebaseAnalyzer {
   private graphDB: GraphDB;
 
+  /**
+   * @constructor
+   * @param {GraphDB} graphDB - An instance of GraphDB.
+   */
   constructor(graphDB: GraphDB) {
     this.graphDB = graphDB;
   }
 
   /**
-   * Builds the initial knowledge graph by traversing the entire file system.
+   * @function buildInitialGraph
+   * @description Builds the initial knowledge graph by traversing the entire file system.
+   * @param {FileNode[]} nodes - The root nodes of the file system.
+   * @returns {void}
    */
   buildInitialGraph(nodes: FileNode[]): void {
     // The graph is not cleared here; MemoryService manages the lifecycle.
     this.traverseAndIndex(nodes, '');
   }
 
+  /**
+   * @function traverseAndIndex
+   * @description Traverses the file system and indexes each file.
+   * @param {FileNode[]} nodes - The nodes to traverse.
+   * @param {string} currentPath - The current path.
+   * @returns {void}
+   * @private
+   */
   private traverseAndIndex(nodes: FileNode[], currentPath: string) {
     for (const node of nodes) {
       const newPath = currentPath ? `${currentPath}/${node.name}` : node.name;
@@ -40,8 +60,12 @@ export class CodebaseAnalyzer {
   }
   
   /**
-   * Parses a single file and updates the knowledge graph.
+   * @function updateGraphFromFile
+   * @description Parses a single file and updates the knowledge graph.
    * It first removes all old data for that file to ensure consistency.
+   * @param {string} path - The path of the file.
+   * @param {string} content - The content of the file.
+   * @returns {void}
    */
   updateGraphFromFile(path: string, content: string): void {
     this.graphDB.deleteNodesByPath(path);
@@ -103,6 +127,13 @@ export class CodebaseAnalyzer {
     });
   }
 
+  /**
+   * @function camelCaseToSentence
+   * @description Converts a camelCase string to a sentence.
+   * @param {string} name - The camelCase string.
+   * @returns {string} The converted sentence.
+   * @private
+   */
   private camelCaseToSentence(name: string): string {
     const result = name.replace(/([A-Z])/g, ' $1');
     const finalResult = result.charAt(0).toUpperCase() + result.slice(1);
@@ -110,7 +141,10 @@ export class CodebaseAnalyzer {
   }
 
   /**
-   * Parses content to find functions and classes without JSDoc comments and adds basic ones.
+   * @function generateDocstrings
+   * @description Parses content to find functions and classes without JSDoc comments and adds basic ones.
+   * @param {string} content - The content to parse.
+   * @returns {string} The content with added docstrings.
    */
   public generateDocstrings(content: string): string {
       const lines = content.split('\n');
@@ -190,12 +224,22 @@ export class CodebaseAnalyzer {
   }
 
   /**
-   * Removes all graph nodes associated with a given file path.
+   * @function removeGraphNodesForPath
+   * @description Removes all graph nodes associated with a given file path.
+   * @param {string} path - The path of the file.
+   * @returns {void}
    */
   removeGraphNodesForPath(path: string): void {
       this.graphDB.deleteNodesByPath(path);
   }
 
+  /**
+   * @function interpretQuery
+   * @description Interprets a natural language query into a structured query.
+   * @param {string} query - The natural language query.
+   * @returns {ParsedQuery} The parsed query.
+   * @private
+   */
   private interpretQuery(query: string): ParsedQuery {
     const findDefMatch = query.match(/definition of|define|where is\s+'?([a-zA-Z0-9_]+)'?/i);
     if (findDefMatch) {
@@ -222,18 +266,20 @@ export class CodebaseAnalyzer {
   }
 
   /**
-   * Finds the definition node for a given function or class name.
-   * @param name The name of the function/class to find.
-   * @returns The graph node for the definition, or null if not found.
+   * @function findDefinition
+   * @description Finds the definition node for a given function or class name.
+   * @param {string} name - The name of the function/class to find.
+   * @returns {GraphNode | null} The graph node for the definition, or null if not found.
    */
   public findDefinition(name: string): GraphNode | null {
     return this.graphDB.findNodes(n => (n.type === 'function-def' || n.type === 'class-def') && n.name === name)[0] || null;
   }
 
   /**
-   * Finds all usage (call) nodes that point to a given definition node ID.
-   * @param definitionId The ID of the function/class definition node.
-   * @returns An array of graph nodes representing the calls.
+   * @function findUsages
+   * @description Finds all usage (call) nodes that point to a given definition node ID.
+   * @param {string} definitionId - The ID of the function/class definition node.
+   * @returns {GraphNode[]} An array of graph nodes representing the calls.
    */
   public findUsages(definitionId: string): GraphNode[] {
     const callingEdges = this.graphDB.findEdges(e => e.targetId === definitionId && e.type === 'calls');
@@ -241,7 +287,10 @@ export class CodebaseAnalyzer {
   }
 
   /**
-   * The main search function that queries the knowledge graph.
+   * @function searchCodebase
+   * @description The main search function that queries the knowledge graph.
+   * @param {string} query - The search query.
+   * @returns {string} The formatted search results.
    */
   searchCodebase(query: string): string {
     const parsedQuery = this.interpretQuery(query);
@@ -304,6 +353,13 @@ export class CodebaseAnalyzer {
     return this.formatResults(results, query, intent, target);
   }
 
+  /**
+   * @function findParentFunctionsOfCallers
+   * @description Finds the parent functions of a list of call nodes.
+   * @param {string} targetId - The ID of the function being called.
+   * @returns {GraphNode[]} An array of graph nodes representing the parent functions.
+   * @private
+   */
   private findParentFunctionsOfCallers(targetId: string): GraphNode[] {
     const callingEdges = this.graphDB.findEdges(e => e.targetId === targetId && e.type === 'calls');
     const callNodes = callingEdges.map(e => this.graphDB.getNode(e.sourceId)).filter((n): n is GraphNode => n !== undefined);
@@ -322,6 +378,16 @@ export class CodebaseAnalyzer {
     return Array.from(parentFunctions.values());
   }
 
+  /**
+   * @function formatResults
+   * @description Formats the search results into a string.
+   * @param {GraphNode[]} results - The search results.
+   * @param {string} originalQuery - The original search query.
+   * @param {ParsedQuery['intent']} intent - The intent of the query.
+   * @param {string} target - The target of the query.
+   * @returns {string} The formatted search results.
+   * @private
+   */
   private formatResults(results: GraphNode[], originalQuery: string, intent: ParsedQuery['intent'], target: string): string {
     if (results.length === 0) {
       return `No structural results found for query: "${originalQuery}"`;

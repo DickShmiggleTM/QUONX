@@ -2,6 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { GitStatus, Commit, CommitDiff } from '../types.ts';
 import { GitIcon, ModifiedIcon, UntrackedIcon, BranchIcon, PushIcon, PullIcon, UndoIcon, ConflictIcon } from './icons.tsx';
 
+/**
+ * @interface GitState
+ * @description Represents the state of the Git repository.
+ * @property {GitStatus} status - The current status of the repository.
+ * @property {string} currentBranch - The name of the current branch.
+ * @property {string[]} branches - A list of all branches.
+ * @property {Commit[]} history - The commit history of the current branch.
+ */
 interface GitState {
     status: GitStatus;
     currentBranch: string;
@@ -9,6 +17,18 @@ interface GitState {
     history: Commit[];
 }
 
+/**
+ * @interface GitPanelProps
+ * @description Props for the GitPanel component.
+ * @property {GitState} gitState - The current state of the Git repository.
+ * @property {(message: string) => void} onCommit - Function to commit changes.
+ * @property {(name: string) => void} onCreateBranch - Function to create a new branch.
+ * @property {(name: string) => void} onSwitchBranch - Function to switch branches.
+ * @property {() => void} onPush - Function to push changes to the remote.
+ * @property {() => void} onPull - Function to pull changes from the remote.
+ * @property {(commitId: string) => CommitDiff | null} getCommitDiff - Function to get the diff of a commit.
+ * @property {(commitId: string) => void} onRevertCommit - Function to revert a commit.
+ */
 interface GitPanelProps {
     gitState: GitState;
     onCommit: (message: string) => void;
@@ -20,6 +40,12 @@ interface GitPanelProps {
     onRevertCommit: (commitId: string) => void;
 }
 
+/**
+ * @function FileListItem
+ * @description A component for displaying a file in the Git status list.
+ * @param {{ path: string; color: string; Icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }} props - The props for the component.
+ * @returns {JSX.Element} The rendered FileListItem component.
+ */
 const FileListItem: React.FC<{
     path: string;
     color: string;
@@ -33,6 +59,12 @@ const FileListItem: React.FC<{
     </div>
 );
 
+/**
+ * @function DiffViewer
+ * @description A component for displaying a diff.
+ * @param {{ diff: string }} props - The props for the component.
+ * @returns {JSX.Element} The rendered DiffViewer component.
+ */
 const DiffViewer: React.FC<{ diff: string }> = ({ diff }) => {
     const lines = diff.split('\n');
     return (
@@ -47,6 +79,12 @@ const DiffViewer: React.FC<{ diff: string }> = ({ diff }) => {
     )
 };
 
+/**
+ * @function GitPanel
+ * @description A component that provides a UI for Git source control.
+ * @param {GitPanelProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered GitPanel component.
+ */
 const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch, onSwitchBranch, onPush, onPull, getCommitDiff, onRevertCommit }) => {
     const [commitMessage, setCommitMessage] = useState('');
     const [newBranchName, setNewBranchName] = useState('');
@@ -68,6 +106,11 @@ const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch,
         }
     }, [selectedCommit, getCommitDiff, history]); // depend on history in case of revert
 
+    /**
+     * @function handleCommit
+     * @description Handles the commit button click.
+     * @returns {void}
+     */
     const handleCommit = () => {
         if (commitMessage.trim()) {
             if(hasConflicts || hasChanges) {
@@ -77,6 +120,11 @@ const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch,
         }
     };
     
+    /**
+     * @function handleCreateBranch
+     * @description Handles the create branch button click.
+     * @returns {void}
+     */
     const handleCreateBranch = () => {
         if (newBranchName.trim()) {
             onCreateBranch(newBranchName.trim());
@@ -84,16 +132,34 @@ const GitPanel: React.FC<GitPanelProps> = ({ gitState, onCommit, onCreateBranch,
         }
     }
     
+    /**
+     * @function handleSelectCommit
+     * @description Handles the selection of a commit from the history.
+     * @param {string} commitId - The ID of the selected commit.
+     * @returns {void}
+     */
     const handleSelectCommit = (commitId: string) => {
         setSelectedCommit(prev => prev === commitId ? null : commitId);
     };
 
+    /**
+     * @function handleRevert
+     * @description Handles the revert button click.
+     * @param {string} commitId - The ID of the commit to revert.
+     * @returns {void}
+     */
     const handleRevert = (commitId: string) => {
         if(window.confirm(`Are you sure you want to revert commit ${commitId.substring(0,7)}? This will create a new commit.`)) {
             onRevertCommit(commitId);
         }
     };
 
+    /**
+     * @function timeAgo
+     * @description Converts a timestamp to a human-readable "time ago" string.
+     * @param {number} timestamp - The timestamp to convert.
+     * @returns {string} The "time ago" string.
+     */
     const timeAgo = (timestamp: number) => {
         const seconds = Math.floor((new Date().getTime() - timestamp) / 1000);
         let interval = seconds / 31536000;

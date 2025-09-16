@@ -2,6 +2,14 @@ import React, { useRef, useEffect, useState } from 'react';
 import { SwarmTaskStatus, SwarmPlanStep, Agent } from '../types.ts';
 import { SwarmIcon, ThinkingIcon } from './icons.tsx';
 
+/**
+ * @interface SwarmPanelProps
+ * @description Props for the SwarmPanel component.
+ * @property {SwarmTaskStatus} task - The current status of the swarm task.
+ * @property {Agent[]} agents - A list of all available agents.
+ * @property {(role: string) => void} onToggleAgent - Function to toggle an agent.
+ * @property {(role: string, description: string, model: Agent['model']) => void} onCreateAgent - Function to create a new agent.
+ */
 interface SwarmPanelProps {
     task: SwarmTaskStatus;
     agents: Agent[];
@@ -9,6 +17,12 @@ interface SwarmPanelProps {
     onCreateAgent: (role: string, description: string, model: Agent['model']) => void;
 }
 
+/**
+ * @function getStatusColor
+ * @description Gets the color for a status string.
+ * @param {SwarmPlanStep['status'] | SwarmTaskStatus['status']} status - The status string.
+ * @returns {string} The color class for the status.
+ */
 const getStatusColor = (status: SwarmPlanStep['status'] | SwarmTaskStatus['status']) => {
     switch(status) {
         case 'complete':
@@ -32,6 +46,12 @@ const getStatusColor = (status: SwarmPlanStep['status'] | SwarmTaskStatus['statu
     }
 };
 
+/**
+ * @function SwarmPanel
+ * @description A component for monitoring and managing swarm activity.
+ * @param {SwarmPanelProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered SwarmPanel component.
+ */
 const SwarmPanel: React.FC<SwarmPanelProps> = ({ task, agents, onToggleAgent, onCreateAgent }) => {
     const logRef = useRef<HTMLDivElement>(null);
     const [activeTab, setActiveTab] = useState<'status' | 'logs' | 'agents'>('status');
@@ -45,6 +65,12 @@ const SwarmPanel: React.FC<SwarmPanelProps> = ({ task, agents, onToggleAgent, on
         }
     }, [task.logs, activeTab]);
     
+    /**
+     * @function handleCreateAgentSubmit
+     * @description Handles the submission of the create agent form.
+     * @param {React.FormEvent} e - The form event.
+     * @returns {void}
+     */
     const handleCreateAgentSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onCreateAgent(newAgentRole.trim(), newAgentDesc.trim(), newAgentModel);

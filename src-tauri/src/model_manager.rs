@@ -1,43 +1,75 @@
+//! This module is responsible for managing AI models.
+//!
+//! It handles scanning for available models, parsing model information,
+//! and managing model configurations. It also provides functions for
+//! checking for models from external services like Ollama and LM Studio.
+
 use std::path::{Path, PathBuf};
 use std::fs;
 use serde::{Deserialize, Serialize};
 use log::info;
 use walkdir::WalkDir;
 
+/// Represents information about a single AI model.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelInfo {
+    /// The name of the model file.
     pub name: String,
+    /// The path to the model file.
     pub path: String,
+    /// The size of the model file in bytes.
     pub size: u64,
+    /// The format of the model.
     pub format: ModelFormat,
+    /// The number of parameters in the model, if known.
     pub parameters: Option<u64>,
 }
 
+/// An enum representing the different formats of AI models.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ModelFormat {
+    /// The GGUF format, commonly used by `llama.cpp`.
     GGUF,
+    /// The Safetensors format.
     Safetensors,
+    /// The PyTorch format.
     Pytorch,
+    /// Any other model format.
     Other(String),
 }
 
+/// Represents the configuration for the AI models.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelConfig {
+    /// The name of the model to use for chat.
     pub chat_model: Option<String>,
+    /// The name of the model to use for code generation.
     pub code_model: Option<String>,
+    /// The name of the model to use for reasoning tasks.
     pub reasoner_model: Option<String>,
+    /// The number of GPU layers to offload.
     pub n_gpu_layers: u32,
+    /// The context size to use for the models.
     pub context_size: u32,
 }
 
+/// The main struct for managing AI models.
 #[derive(Debug)]
 pub struct ModelManager {
+    /// The directory where the models are stored.
     models_dir: PathBuf,
+    /// A list of all the available models.
     models: Vec<ModelInfo>,
+    /// The current model configuration.
     config: ModelConfig,
 }
 
 impl ModelManager {
+    /// Creates a new `ModelManager` instance.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - A new `ModelManager` instance with default values.
     pub fn new() -> Self {
         let models_dir = PathBuf::from("models");
         Self {
@@ -53,6 +85,15 @@ impl ModelManager {
         }
     }
 
+    /// Scans the models directory for available models.
+    ///
+    /// This method clears the current list of models and scans the `models_dir`
+    /// for model files. It then parses each file to extract model information.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), Box<dyn std::error::Error>>` - An empty result on success,
+    ///   or an error otherwise.
     pub async fn scan_models(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.models.clear();
         
@@ -77,6 +118,16 @@ impl ModelManager {
         Ok(())
     }
 
+    /// Parses a model file to extract information.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the model file.
+    ///
+    /// # Returns
+    ///
+    /// * `Option<ModelInfo>` - A `ModelInfo` struct if the file can be parsed,
+    ///   or `None` otherwise.
     async fn parse_model_file(&self, path: &Path) -> Option<ModelInfo> {
         let file_name = path.file_name()?.to_string_lossy().to_string();
         let metadata = fs::metadata(path).ok()?;
@@ -104,6 +155,16 @@ impl ModelManager {
         })
     }
 
+    /// Extracts the number of parameters from a model's filename.
+    ///
+    /// # Arguments
+    ///
+    /// * `filename` - The filename of the model.
+    ///
+    /// # Returns
+    ///
+    /// * `Option<u64>` - The number of parameters if it can be determined,
+    ///   or `None` otherwise.
     fn extract_parameters_from_filename(&self, filename: &str) -> Option<u64> {
         // Common patterns for parameter extraction
         let patterns = [
@@ -128,10 +189,12 @@ impl ModelManager {
         None
     }
 
+    /// Returns a reference to the list of all models.
     pub fn get_models(&self) -> &Vec<ModelInfo> {
         &self.models
     }
 
+    /// Returns a list of all GGUF models.
     pub fn get_gguf_models(&self) -> Vec<ModelInfo> {
         self.models
             .iter()
@@ -140,39 +203,53 @@ impl ModelManager {
             .collect()
     }
 
+    /// Returns a reference to a model by its name.
     pub fn get_model_by_name(&self, name: &str) -> Option<&ModelInfo> {
         self.models.iter().find(|m| m.name == name)
     }
 
+    /// Returns a reference to the current model configuration.
     pub fn get_config(&self) -> &ModelConfig {
         &self.config
     }
 
+    /// Updates the model configuration.
     pub fn update_config(&mut self, config: ModelConfig) {
         self.config = config;
         info!("Updated model configuration");
     }
 
+    /// Sets the chat model.
     pub fn set_chat_model(&mut self, model_name: Option<String>) {
         self.config.chat_model = model_name;
     }
 
+    /// Sets the code model.
     pub fn set_code_model(&mut self, model_name: Option<String>) {
         self.config.code_model = model_name;
     }
 
+    /// Sets the reasoner model.
     pub fn set_reasoner_model(&mut self, model_name: Option<String>) {
         self.config.reasoner_model = model_name;
     }
 
+    /// Sets the number of GPU layers to offload.
     pub fn set_gpu_layers(&mut self, layers: u32) {
         self.config.n_gpu_layers = layers;
     }
 
+    /// Sets the context size for the models.
     pub fn set_context_size(&mut self, size: u32) {
         self.config.context_size = size;
     }
 
+    /// Checks for available models from Ollama.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Vec<String>, Box<dyn std::error::Error>>` - A list of model
+    ///   names on success, or an error otherwise.
     pub async fn check_ollama_models(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let client = reqwest::Client::new();
         let url = "http://localhost:11434/api/tags";
@@ -196,6 +273,12 @@ impl ModelManager {
         }
     }
 
+    /// Checks for available models from LM Studio.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Vec<String>, Box<dyn std::error::Error>>` - A list of model
+    ///   names on success, or an error otherwise.
     pub async fn check_lm_studio_models(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let client = reqwest::Client::new();
         let url = "http://localhost:1234/v1/models";

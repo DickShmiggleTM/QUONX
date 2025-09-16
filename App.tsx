@@ -7,12 +7,24 @@ import { Terminal } from './components/Terminal';
 import { SettingsPanel } from './components/SettingsPanel';
 import './App.css';
 
+/**
+ * @interface ProjectFile
+ * @description Represents a file or directory in the project.
+ * @property {string} path - The full path to the file or directory.
+ * @property {string} name - The name of the file or directory.
+ * @property {boolean} isDirectory - Whether the item is a directory.
+ */
 interface ProjectFile {
   path: string;
   name: string;
   isDirectory: boolean;
 }
 
+/**
+ * @function App
+ * @description The main component of the Quonx IDE application.
+ * @returns {JSX.Element} The rendered App component.
+ */
 function App() {
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
@@ -23,6 +35,11 @@ function App() {
     initializeApp();
   }, []);
 
+  /**
+   * @function initializeApp
+   * @description Initializes the application by fetching the project files.
+   * @returns {Promise<void>}
+   */
   const initializeApp = async () => {
     try {
       // Initialize the application
@@ -39,11 +56,23 @@ function App() {
     }
   };
 
+  /**
+   * @function handleFileSelect
+   * @description Handles the selection of a file from the file explorer.
+   * @param {string} filePath - The path of the selected file.
+   * @returns {void}
+   */
   const handleFileSelect = (filePath: string) => {
     setCurrentFile(filePath);
     setActivePanel('editor');
   };
 
+  /**
+   * @function handleAIQuery
+   * @description Handles an AI query from the AI agent panel.
+   * @param {string} query - The query to send to the AI model.
+   * @returns {Promise<string>} The response from the AI model.
+   */
   const handleAIQuery = async (query: string) => {
     try {
       const response = await invoke<string>('start_ai_inference', {

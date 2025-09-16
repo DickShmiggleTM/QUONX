@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
+/**
+ * @interface ModelSettings
+ * @description Represents the settings for the AI models.
+ * @property {string} chatModel - The name of the chat model.
+ * @property {string} codeModel - The name of the code model.
+ * @property {string} reasonerModel - The name of the reasoner model.
+ * @property {number} nGpuLayers - The number of GPU layers to offload.
+ * @property {number} contextSize - The context size for the models.
+ * @property {number} temperature - The temperature for sampling.
+ * @property {number} maxTokens - The maximum number of tokens to generate.
+ */
 interface ModelSettings {
   chatModel: string;
   codeModel: string;
@@ -11,6 +22,11 @@ interface ModelSettings {
   maxTokens: number;
 }
 
+/**
+ * @function SettingsPanel
+ * @description A component for managing the application settings.
+ * @returns {JSX.Element} The rendered SettingsPanel component.
+ */
 export const SettingsPanel: React.FC = () => {
   const [settings, setSettings] = useState<ModelSettings>({
     chatModel: '',
@@ -29,6 +45,11 @@ export const SettingsPanel: React.FC = () => {
     loadSettings();
   }, []);
 
+  /**
+   * @function loadSettings
+   * @description Loads the settings from the backend and local storage.
+   * @returns {Promise<void>}
+   */
   const loadSettings = async () => {
     try {
       const models = await invoke<string[]>('get_available_models');
@@ -46,12 +67,24 @@ export const SettingsPanel: React.FC = () => {
     }
   };
 
+  /**
+   * @function saveSettings
+   * @description Saves the settings to local storage and the backend.
+   * @returns {void}
+   */
   const saveSettings = () => {
     localStorage.setItem('quonx-settings', JSON.stringify(settings));
     // Also save to backend
     invoke('save_settings', { settings });
   };
 
+  /**
+   * @function handleSettingChange
+   * @description Handles changes to a setting.
+   * @param {keyof ModelSettings} key - The key of the setting to change.
+   * @param {string | number} value - The new value of the setting.
+   * @returns {void}
+   */
   const handleSettingChange = (key: keyof ModelSettings, value: string | number) => {
     setSettings(prev => ({
       ...prev,
@@ -59,6 +92,11 @@ export const SettingsPanel: React.FC = () => {
     }));
   };
 
+  /**
+   * @function resetToDefaults
+   * @description Resets the settings to their default values.
+   * @returns {void}
+   */
   const resetToDefaults = () => {
     setSettings({
       chatModel: '',
