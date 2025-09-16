@@ -1,11 +1,18 @@
 import { FileNode, Plugin, PluginTool } from '../types.ts';
 
+/**
+ * @interface FileSystemAPI
+ * @description An API for accessing the file system.
+ */
 interface FileSystemAPI {
     (path: string): string | null;
 }
 
-// This script will be run inside the Web Worker.
-// It creates a sandboxed environment for the plugin code.
+/**
+ * @const workerScript
+ * @description The script that will be run inside the Web Worker.
+ * It creates a sandboxed environment for the plugin code.
+ */
 const workerScript = `
   self.onmessage = (event) => {
     const { scriptContent } = event.data;
@@ -40,25 +47,50 @@ const workerScript = `
   };
 `;
 
+/**
+ * @class PluginService
+ * @description A service for loading and managing plugins.
+ */
 export class PluginService {
     private loadedPlugins: Plugin[] = [];
     private registeredTools: PluginTool[] = [];
     private getFileContent: FileSystemAPI;
     private fileSystem: FileNode[];
 
+    /**
+     * @constructor
+     * @param {FileNode[]} fileSystem - The file system.
+     * @param {FileSystemAPI} getFileContent - A function to get the content of a file.
+     */
     constructor(fileSystem: FileNode[], getFileContent: FileSystemAPI) {
         this.fileSystem = fileSystem;
         this.getFileContent = getFileContent;
     }
 
+    /**
+     * @function getLoadedPlugins
+     * @description Gets the list of loaded plugins.
+     * @returns {Plugin[]} The list of loaded plugins.
+     */
     public getLoadedPlugins(): Plugin[] {
         return this.loadedPlugins;
     }
 
+    /**
+     * @function getRegisteredTools
+     * @description Gets the list of registered tools.
+     * @returns {PluginTool[]} The list of registered tools.
+     */
     public getRegisteredTools(): PluginTool[] {
         return this.registeredTools;
     }
 
+    /**
+     * @function loadPlugins
+     * @description Loads all plugins from the file system.
+     * @param {{ [pluginName: string]: boolean }} enabledPlugins - A map of which plugins are enabled.
+     * @returns {Promise<void>}
+     */
     public async loadPlugins(enabledPlugins: { [pluginName: string]: boolean }) {
         this.loadedPlugins = [];
         this.registeredTools = [];
@@ -141,7 +173,11 @@ export class PluginService {
     }
     
     /**
-     * Executes plugin code inside a secure Web Worker.
+     * @function executePluginInWorker
+     * @description Executes plugin code inside a secure Web Worker.
+     * @param {string} scriptContent - The content of the plugin script.
+     * @returns {Promise<{ name: string; description: string; handler: string }[]>} A promise that resolves with the tools registered by the plugin.
+     * @private
      */
     private executePluginInWorker(scriptContent: string): Promise<{ name: string; description: string; handler: string }[]> {
         return new Promise((resolve, reject) => {

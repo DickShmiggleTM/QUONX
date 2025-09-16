@@ -1,11 +1,23 @@
 import React from 'react';
 
+/**
+ * @interface ContextPanelProps
+ * @description Props for the ContextPanel component.
+ * @property {string | null} selectedText - The currently selected text in the editor.
+ * @property {string | null} currentFilePath - The path of the currently active file.
+ */
 interface ContextPanelProps {
   // Example props:
   // selectedText: string | null;
   // currentFilePath: string | null;
 }
 
+/**
+ * @function ContextPanel
+ * @description A component that displays contextual information, such as the current file and selected text.
+ * @param {ContextPanelProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered ContextPanel component.
+ */
 const ContextPanel: React.FC<ContextPanelProps> = (/* { selectedText, currentFilePath } */) => {
   const currentFilePath = "src/App.tsx"; // dummy data
   const selectedText = "function App() { ... }"; // dummy data

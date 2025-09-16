@@ -1,14 +1,38 @@
 import { generateContent } from './geminiService.ts';
 import { SwarmPlanStep, SwarmTaskStatus, AgentRole, RoleModels, Agent } from '../types.ts';
 
+/**
+ * @callback ToolExecutor
+ * @description A function that executes a tool.
+ * @param {string} name - The name of the tool to execute.
+ * @param {any} args - The arguments for the tool.
+ * @returns {Promise<string>} The result of the tool execution.
+ */
 type ToolExecutor = (name: string, args: any) => Promise<string>;
+/**
+ * @callback SwarmUpdateCallback
+ * @description A callback function to update the swarm task status.
+ * @param {Partial<SwarmTaskStatus>} update - The partial update to apply to the swarm task status.
+ * @returns {void}
+ */
 type SwarmUpdateCallback = (update: Partial<SwarmTaskStatus>) => void;
 
 // --- AGENT DEFINITIONS ---
 
+/**
+ * @class PlannerAgent
+ * @description An agent that creates a plan for a given goal.
+ */
 class PlannerAgent {
     constructor(private model: string) {}
     
+    /**
+     * @function createPlan
+     * @description Creates a plan for a given goal.
+     * @param {string} goal - The goal to create a plan for.
+     * @param {Agent[]} activeAgents - The list of active agents.
+     * @returns {Promise<SwarmPlanStep[]>} The created plan.
+     */
     async createPlan(goal: string, activeAgents: Agent[]): Promise<SwarmPlanStep[]> {
         const availableAgentsDesc = activeAgents
             .filter(a => a.role !== 'Planner' && a.role !== 'SynthesizerAgent' && a.role !== 'Coordinator')
@@ -35,8 +59,18 @@ You must respond with ONLY a valid JSON array of plan steps. Do not include any 
     }
 }
 
+/**
+ * @class DesignerAgent
+ * @description An agent that designs software components.
+ */
 class DesignerAgent {
     constructor(private model: string) {}
+    /**
+     * @function design
+     * @description Designs a software component based on a goal.
+     * @param {string} goal - The goal to design for.
+     * @returns {Promise<string>} The design specification.
+     */
     async design(goal: string): Promise<string> {
         const systemInstruction = `You are a principal software designer. Take the user's goal and produce a detailed technical specification.
 Describe the components, their props, state, and file paths. For APIs, define the endpoint, method, request body, and response.
@@ -46,8 +80,18 @@ Your response should be a clear, concise markdown document.`;
     }
 }
 
+/**
+ * @class CodeAgent
+ * @description An agent that generates API code.
+ */
 class CodeAgent {
     constructor(private model: string) {}
+    /**
+     * @function generateApi
+     * @description Generates API code based on a design.
+     * @param {string} design - The design to generate code for.
+     * @returns {Promise<string>} The generated API code.
+     */
     async generateApi(design: string): Promise<string> {
         const systemInstruction = `You are an expert backend developer. Write a complete, production-ready API file based on the technical design.
 Your response MUST be ONLY the complete code. Do not add any commentary, explanations, or markdown formatting.`;
@@ -56,8 +100,18 @@ Your response MUST be ONLY the complete code. Do not add any commentary, explana
     }
 }
 
+/**
+ * @class UIAgent
+ * @description An agent that generates UI component code.
+ */
 class UIAgent {
     constructor(private model: string) {}
+    /**
+     * @function generateComponent
+     * @description Generates UI component code based on a design.
+     * @param {string} design - The design to generate code for.
+     * @returns {Promise<string>} The generated UI component code.
+     */
     async generateComponent(design: string): Promise<string> {
         const systemInstruction = `You are an expert frontend developer specializing in React and TypeScript. Write a complete, production-ready component file based on the technical design.
 Your response MUST be ONLY the complete code for the component file. Do not add any commentary, explanations, or markdown formatting.`;
@@ -66,8 +120,19 @@ Your response MUST be ONLY the complete code for the component file. Do not add 
     }
 }
 
+/**
+ * @class TestingAgent
+ * @description An agent that generates tests for code.
+ */
 class TestingAgent {
     constructor(private model: string) {}
+    /**
+     * @function generateTests
+     * @description Generates tests for code based on a goal.
+     * @param {string} code - The code to generate tests for.
+     * @param {string} goal - The goal to generate tests for.
+     * @returns {Promise<string>} The generated test code.
+     */
     async generateTests(code: string, goal: string): Promise<string> {
         const systemInstruction = `You are an expert QA engineer. Write comprehensive unit or component tests for the given code, covering the requirements of the original goal.
 Use a modern testing framework like Jest or React Testing Library.
@@ -77,8 +142,19 @@ Your response MUST be ONLY the complete code for the test file. Do not add any c
     }
 }
 
+/**
+ * @class DocumentAgent
+ * @description An agent that writes documentation for code.
+ */
 class DocumentAgent {
     constructor(private model: string) {}
+    /**
+     * @function writeDocs
+     * @description Writes documentation for code based on a goal.
+     * @param {string} code - The code to write documentation for.
+     * @param {string} goal - The goal to write documentation for.
+     * @returns {Promise<string>} The generated documentation.
+     */
     async writeDocs(code: string, goal: string): Promise<string> {
         const systemInstruction = `You are an expert technical writer. Create clear, concise documentation for the provided code in Markdown format.
 Explain the component's purpose, props, and usage examples based on the original goal.
@@ -88,8 +164,19 @@ Your response MUST be ONLY the markdown documentation.`;
     }
 }
 
+/**
+ * @class ReviewerAgent
+ * @description An agent that reviews code.
+ */
 class ReviewerAgent {
     constructor(private model: string) {}
+    /**
+     * @function review
+     * @description Reviews an artifact based on a description.
+     * @param {string} artifact - The artifact to review.
+     * @param {string} description - The description of the artifact.
+     * @returns {Promise<{ passed: boolean; feedback: string }>} The review result.
+     */
     async review(artifact: string, description: string): Promise<{ passed: boolean; feedback: string }> {
         const systemInstruction = `You are a principal engineer and expert code reviewer. Your job is to check a generated artifact for correctness, completeness, and quality based on its requirements.
 Respond with a JSON object: { "passed": boolean, "feedback": "your review notes" }.
@@ -103,8 +190,19 @@ Be critical. If there are potential bugs, syntax errors, or the artifact doesn't
     }
 }
 
+/**
+ * @class SynthesizerAgent
+ * @description An agent that summarizes the results of a task.
+ */
 class SynthesizerAgent {
     constructor(private model: string) {}
+    /**
+     * @function summarize
+     * @description Summarizes the results of a task.
+     * @param {string} goal - The original goal of the task.
+     * @param {SwarmPlanStep[]} plan - The plan that was executed.
+     * @returns {Promise<string>} The summary.
+     */
     async summarize(goal: string, plan: SwarmPlanStep[]): Promise<string> {
         const systemInstruction = `You are the user-facing AI assistant. Your job is to provide a concise, clear summary of a completed task.
 Explain what you did and list any files that were created or modified.`;
@@ -118,8 +216,18 @@ Provide a summary for the user.`;
     }
 }
 
+/**
+ * @class CustomAgent
+ * @description A custom agent that can be defined by the user.
+ */
 class CustomAgent {
     constructor(private model: string, private description: string) {}
+    /**
+     * @function execute
+     * @description Executes a custom task.
+     * @param {string} goal - The goal to execute.
+     * @returns {Promise<string>} The result of the execution.
+     */
     async execute(goal: string): Promise<string> {
         const systemInstruction = `You are a specialized AI agent. Your role is: "${this.description}".
 You must perform the task described in the prompt and return the result.
@@ -132,11 +240,21 @@ If you are performing analysis, return a clear summary of your findings.`;
 
 // --- ORCHESTRATOR ---
 
+/**
+ * @class SwarmCoordinator
+ * @description An orchestrator for the swarm of agents.
+ */
 export class SwarmCoordinator {
     private agents: Record<string, any> = {};
     private sharedState: Record<string, any> = {};
     private models: RoleModels;
 
+    /**
+     * @constructor
+     * @param {RoleModels} models - The models to use for each agent role.
+     * @param {ToolExecutor} toolExecutor - A function to execute tools.
+     * @param {SwarmUpdateCallback} onUpdate - A callback function to update the swarm task status.
+     */
     constructor(
         models: RoleModels,
         private toolExecutor: ToolExecutor,
@@ -145,10 +263,24 @@ export class SwarmCoordinator {
         this.models = models;
     }
 
+    /**
+     * @function log
+     * @description Logs a message to the swarm task status.
+     * @param {AgentRole | string} role - The role of the agent logging the message.
+     * @param {string} message - The message to log.
+     * @private
+     */
     private log(role: AgentRole | string, message: string) {
         this.onUpdate({ logs: [{ role, message, timestamp: new Date().toLocaleTimeString() }] });
     }
 
+    /**
+     * @function run
+     * @description Runs a swarm task.
+     * @param {string} goal - The goal of the task.
+     * @param {Agent[]} activeAgents - The list of active agents.
+     * @returns {Promise<{ success: boolean; finalMessage: string }>} The result of the task.
+     */
     public async run(goal: string, activeAgents: Agent[]): Promise<{ success: boolean; finalMessage: string }> {
         this.sharedState = {};
         this.agents = {};
@@ -210,6 +342,14 @@ export class SwarmCoordinator {
         return { success: true, finalMessage: summary };
     }
 
+    /**
+     * @function executeStep
+     * @description Executes a single step of the plan.
+     * @param {SwarmPlanStep} step - The step to execute.
+     * @param {string} overallGoal - The overall goal of the task.
+     * @returns {Promise<string>} The result of the step execution.
+     * @private
+     */
     private async executeStep(step: SwarmPlanStep, overallGoal: string): Promise<string> {
         const executeAndReview = async (generationPromise: Promise<string>, reviewDesc: string, filePath: string) => {
             const artifact = await generationPromise;
@@ -314,12 +454,27 @@ export class SwarmCoordinator {
         }
     }
 
+    /**
+     * @function failTask
+     * @description Fails a swarm task.
+     * @param {string} message - The reason for the failure.
+     * @returns {{ success: boolean, finalMessage: string }} The result of the task.
+     * @private
+     */
     private failTask(message: string): { success: boolean, finalMessage: string } {
         this.log('Coordinator', message);
         this.onUpdate({ status: 'failed' });
         return { success: false, finalMessage: `I have failed the task. Details: ${message}` };
     }
 
+    /**
+     * @function updateStepStatus
+     * @description Updates the status of a step in the plan.
+     * @param {number} index - The index of the step to update.
+     * @param {SwarmPlanStep['status']} status - The new status of the step.
+     * @param {string} [result] - The result of the step execution.
+     * @private
+     */
     private updateStepStatus(index: number, status: SwarmPlanStep['status'], result?: string) {
         this.onUpdate({
             plan: [{ ...this.onUpdate.arguments[0].plan[index], step: index + 1, status, ...(result && { result }) }] as any,

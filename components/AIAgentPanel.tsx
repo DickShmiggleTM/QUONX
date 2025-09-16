@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
 
+/**
+ * @interface Message
+ * @description Represents a single message in the AI chat.
+ * @property {string} id - The unique ID of the message.
+ * @property {'user' | 'agent'} type - The type of the message sender.
+ * @property {string} content - The content of the message.
+ * @property {Date} timestamp - The timestamp of the message.
+ */
 interface Message {
   id: string;
   type: 'user' | 'agent';
@@ -7,16 +15,33 @@ interface Message {
   timestamp: Date;
 }
 
+/**
+ * @interface AIAgentPanelProps
+ * @description Props for the AIAgentPanel component.
+ * @property {(query: string) => Promise<string>} onQuery - Function to handle AI queries.
+ * @property {string | null} currentFile - The currently active file.
+ */
 interface AIAgentPanelProps {
   onQuery: (query: string) => Promise<string>;
   currentFile: string | null;
 }
 
+/**
+ * @function AIAgentPanel
+ * @description A component that provides an interface for interacting with an AI agent.
+ * @param {AIAgentPanelProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered AIAgentPanel component.
+ */
 export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ onQuery, currentFile }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  /**
+   * @function handleSendMessage
+   * @description Sends a message to the AI agent and displays the response.
+   * @returns {Promise<void>}
+   */
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
@@ -53,6 +78,12 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ onQuery, currentFile
     }
   };
 
+  /**
+   * @function handleKeyPress
+   * @description Handles key press events in the input field.
+   * @param {React.KeyboardEvent} e - The keyboard event.
+   * @returns {void}
+   */
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -60,6 +91,12 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ onQuery, currentFile
     }
   };
 
+  /**
+   * @function formatTimestamp
+   * @description Formats a timestamp for display.
+   * @param {Date} timestamp - The timestamp to format.
+   * @returns {string} The formatted timestamp.
+   */
   const formatTimestamp = (timestamp: Date) => {
     return timestamp.toLocaleTimeString('en-US', { 
       hour12: false, 

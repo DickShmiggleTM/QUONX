@@ -1,6 +1,16 @@
 import { LintingError } from '../types.ts';
 
+/**
+ * @class LintingService
+ * @description A service for linting code.
+ */
 export class LintingService {
+  /**
+   * @function lint
+   * @description Lints a string of code and returns an array of errors.
+   * @param {string} code - The code to lint.
+   * @returns {LintingError[]} An array of linting errors.
+   */
   public lint(code: string): LintingError[] {
     const errors: LintingError[] = [];
     const lines = code.split('\n');

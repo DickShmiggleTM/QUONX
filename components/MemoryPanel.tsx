@@ -3,6 +3,14 @@ import { GraphNode } from '../types.ts';
 import { MemoryIcon } from './icons.tsx';
 import KnowledgeGraphVisualizer from './KnowledgeGraphVisualizer.tsx';
 
+/**
+ * @interface MemoryPanelProps
+ * @description Props for the MemoryPanel component.
+ * @property {boolean} isMemoryEnabled - Whether the memory is enabled.
+ * @property {(isEnabled: boolean) => void} onToggleMemory - Function to toggle the memory.
+ * @property {(query: string) => GraphNode[]} onSearch - Function to search the memory.
+ * @property {{ nodes: GraphNode[], edges: any[] }} graphData - The data for the knowledge graph.
+ */
 interface MemoryPanelProps {
     isMemoryEnabled: boolean;
     onToggleMemory: (isEnabled: boolean) => void;
@@ -10,17 +18,35 @@ interface MemoryPanelProps {
     graphData: { nodes: GraphNode[], edges: any[] };
 }
 
+/**
+ * @function SearchIcon
+ * @description A component for the search icon.
+ * @param {React.SVGProps<SVGSVGElement>} props - The props for the component.
+ * @returns {JSX.Element} The rendered SearchIcon component.
+ */
 const SearchIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
     <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
   </svg>
 );
 
+/**
+ * @function MemoryPanel
+ * @description A component for managing and visualizing the knowledge graph memory.
+ * @param {MemoryPanelProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered MemoryPanel component.
+ */
 const MemoryPanel: React.FC<MemoryPanelProps> = ({ isMemoryEnabled, onToggleMemory, onSearch, graphData }) => {
     const [activeTab, setActiveTab] = useState<'search' | 'visualize' | 'settings'>('search');
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<GraphNode[]>([]);
 
+    /**
+     * @function handleSearchSubmit
+     * @description Handles the submission of a search query.
+     * @param {React.FormEvent} e - The form event.
+     * @returns {void}
+     */
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const results = onSearch(searchQuery);

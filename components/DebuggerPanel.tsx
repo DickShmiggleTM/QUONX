@@ -2,6 +2,14 @@ import React from 'react';
 import { BugIcon, PlayIcon, PauseIcon, StepOverIcon, StepIntoIcon, StepOutIcon } from './icons.tsx';
 import { DebuggerState } from '../types.ts';
 
+/**
+ * @interface DebuggerPanelProps
+ * @description Props for the DebuggerPanel component.
+ * @property {DebuggerState} debuggerState - The current state of the debugger.
+ * @property {() => void} onStart - Function to start the debugger.
+ * @property {() => void} onStop - Function to stop the debugger.
+ * @property {(action: 'over' | 'into' | 'out') => void} onStep - Function to step through the code.
+ */
 interface DebuggerPanelProps {
     debuggerState: DebuggerState;
     onStart: () => void;
@@ -9,9 +17,20 @@ interface DebuggerPanelProps {
     onStep: (action: 'over' | 'into' | 'out') => void;
 }
 
+/**
+ * @function DebuggerPanel
+ * @description A component that provides a UI for debugging code.
+ * @param {DebuggerPanelProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered DebuggerPanel component.
+ */
 const DebuggerPanel: React.FC<DebuggerPanelProps> = ({ debuggerState, onStart, onStop, onStep }) => {
     const { isActive, isPaused, currentLine, breakpoints, callStack, scope } = debuggerState;
 
+    /**
+     * @function handleDebugAction
+     * @description Handles the main debug action button click.
+     * @returns {void}
+     */
     const handleDebugAction = () => {
         if (!isActive) {
             onStart();

@@ -1,6 +1,4 @@
-// FIX: Added .ts extension to the import path.
 import { generateContent } from './geminiService.ts';
-// FIX: Added .ts extension to the import path.
 import { PluginTool } from '../types.ts';
 
 const SYSTEM_INSTRUCTION = `
@@ -31,6 +29,14 @@ If the user describes a goal that requires planning and several steps (like crea
 For refactoring, prefer 'project-refactor' if the change seems global (e.g., "rename X everywhere"), otherwise use 'code-generation' for single-file changes.
 `;
 
+/**
+ * @interface IntentResult
+ * @description Represents the result of an intent inference.
+ * @property {'file-edit' | 'code-generation' | 'code-search' | 'run-command' | 'plugin-tool' | 'general-chat' | 'project-refactor' | 'swarm-task'} intent - The inferred intent.
+ * @property {string} details - A summary of the task.
+ * @property {string | null} toolName - The name of the plugin tool, if any.
+ * @property {any | null} toolArgs - The arguments for the plugin tool, if any.
+ */
 export interface IntentResult {
     intent: 'file-edit' | 'code-generation' | 'code-search' | 'run-command' | 'plugin-tool' | 'general-chat' | 'project-refactor' | 'swarm-task';
     details: string;
@@ -38,13 +44,28 @@ export interface IntentResult {
     toolArgs: any | null;
 }
 
+/**
+ * @class IntentInferenceEngine
+ * @description An engine for inferring user intent from natural language prompts.
+ */
 export class IntentInferenceEngine {
     private model: string;
 
+    /**
+     * @constructor
+     * @param {string} model - The name of the model to use for inference.
+     */
     constructor(model: string) {
         this.model = model;
     }
 
+    /**
+     * @function inferIntent
+     * @description Infers the user's intent from a prompt.
+     * @param {string} prompt - The user's prompt.
+     * @param {PluginTool[]} tools - A list of available plugin tools.
+     * @returns {Promise<IntentResult>} The inferred intent.
+     */
     public async inferIntent(prompt: string, tools: PluginTool[]): Promise<IntentResult> {
         const toolsDescription = tools.map(t => `- ${t.name}: ${t.description}`).join('\n');
         const fullPrompt = `

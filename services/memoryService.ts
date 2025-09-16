@@ -4,6 +4,10 @@ import { CodebaseAnalyzer } from './codebaseAnalyzer.ts';
 
 const MEMORY_STORAGE_KEY = 'quonx_ide_memory_graph';
 
+/**
+ * @class MemoryService
+ * @description A service for managing the knowledge graph memory.
+ */
 export class MemoryService {
     private graphDB: GraphDB;
     private lastSave: number = 0;
@@ -13,24 +17,58 @@ export class MemoryService {
         this.graphDB = new GraphDB();
     }
     
+    /**
+     * @function getGraphDB
+     * @description Gets the GraphDB instance.
+     * @returns {GraphDB} The GraphDB instance.
+     */
     public getGraphDB(): GraphDB {
         return this.graphDB;
     }
 
+    /**
+     * @function buildInitialMemory
+     * @description Builds the initial memory from the file system.
+     * @param {FileNode[]} files - The root nodes of the file system.
+     * @param {CodebaseAnalyzer} analyzer - The codebase analyzer.
+     * @returns {void}
+     */
     public buildInitialMemory(files: FileNode[], analyzer: CodebaseAnalyzer): void {
         this.graphDB.clear();
         analyzer.buildInitialGraph(files);
         this.save();
     }
 
+    /**
+     * @function updateMemoryFromFile
+     * @description Updates the memory from a file.
+     * @param {string} path - The path of the file.
+     * @param {string} content - The content of the file.
+     * @param {CodebaseAnalyzer} analyzer - The codebase analyzer.
+     * @returns {void}
+     */
     public updateMemoryFromFile(path: string, content: string, analyzer: CodebaseAnalyzer): void {
         analyzer.updateGraphFromFile(path, content);
     }
     
+    /**
+     * @function removeMemoryForPath
+     * @description Removes the memory for a given path.
+     * @param {string} path - The path of the file.
+     * @returns {void}
+     */
     public removeMemoryForPath(path: string): void {
         this.graphDB.deleteNodesByPath(path);
     }
 
+    /**
+     * @function addInteractionMemory
+     * @description Adds an interaction to the memory.
+     * @param {string} prompt - The user's prompt.
+     * @param {string} response - The AI's response.
+     * @param {string | null} activeFile - The currently active file.
+     * @returns {void}
+     */
     public addInteractionMemory(prompt: string, response: string, activeFile: string | null): void {
         const timestamp = Date.now();
         const promptId = `prompt-${timestamp}`;
@@ -62,6 +100,14 @@ export class MemoryService {
         }
     }
 
+    /**
+     * @function findRelevantMemories
+     * @description Finds relevant memories for a given prompt.
+     * @param {string} prompt - The user's prompt.
+     * @param {string | null} activeFile - The currently active file.
+     * @param {number} [limit=5] - The maximum number of memories to return.
+     * @returns {GraphNode[]} An array of relevant memories.
+     */
     public findRelevantMemories(prompt: string, activeFile: string | null, limit: number = 5): GraphNode[] {
         const keywords = prompt.toLowerCase().match(/\b(\w+)\b/g) || [];
         const uniqueKeywords = [...new Set(keywords)].filter(k => k.length > 3);
@@ -94,6 +140,12 @@ export class MemoryService {
         return sorted.slice(0, limit).map(entry => entry[0]);
     }
     
+    /**
+     * @function search
+     * @description Searches the memory for a given query.
+     * @param {string} query - The search query.
+     * @returns {GraphNode[]} An array of matching nodes.
+     */
     public search(query: string): GraphNode[] {
         if (!query) return [];
         const lowerCaseQuery = query.toLowerCase();
@@ -102,6 +154,11 @@ export class MemoryService {
         );
     }
     
+    /**
+     * @function getGraphData
+     * @description Gets the data for the knowledge graph.
+     * @returns {{ nodes: GraphNode[], edges: any[] }} The graph data.
+     */
     public getGraphData(): { nodes: GraphNode[], edges: any[] } {
         return {
             nodes: this.graphDB.getAllNodes(),
@@ -109,6 +166,11 @@ export class MemoryService {
         };
     }
 
+    /**
+     * @function save
+     * @description Saves the memory to local storage.
+     * @returns {void}
+     */
     public save(): void {
         const now = Date.now();
         if (now - this.lastSave < this.saveThrottle) {
@@ -123,6 +185,11 @@ export class MemoryService {
         }
     }
 
+    /**
+     * @function load
+     * @description Loads the memory from local storage.
+     * @returns {boolean} Whether the memory was loaded successfully.
+     */
     public load(): boolean {
         try {
             const serializedGraph = localStorage.getItem(MEMORY_STORAGE_KEY);

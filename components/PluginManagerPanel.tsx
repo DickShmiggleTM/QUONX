@@ -2,12 +2,25 @@ import React from 'react';
 import { Plugin } from '../types.ts';
 import { PluginsIcon } from './icons.tsx';
 
+/**
+ * @interface PluginManagerPanelProps
+ * @description Props for the PluginManagerPanel component.
+ * @property {Plugin[]} plugins - A list of all available plugins.
+ * @property {{ [pluginName: string]: boolean }} enabledPlugins - A map of which plugins are enabled.
+ * @property {(pluginName: string, isEnabled: boolean) => void} onTogglePlugin - Function to toggle a plugin.
+ */
 interface PluginManagerPanelProps {
     plugins: Plugin[];
     enabledPlugins: { [pluginName: string]: boolean };
     onTogglePlugin: (pluginName: string, isEnabled: boolean) => void;
 }
 
+/**
+ * @function PluginManagerPanel
+ * @description A component for managing plugins.
+ * @param {PluginManagerPanelProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered PluginManagerPanel component.
+ */
 const PluginManagerPanel: React.FC<PluginManagerPanelProps> = ({ plugins, enabledPlugins, onTogglePlugin }) => {
     return (
         <div className="bg-black/50 border border-green-800 p-2 overflow-y-auto h-full">

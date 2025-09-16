@@ -1,7 +1,8 @@
 import { FileNode, IndexStatus, SearchResult } from '../types.ts';
 
 /**
- * A service that simulates the Vector Layer of the IDE.
+ * @class IndexingService
+ * @description A service that simulates the Vector Layer of the IDE.
  * It builds a searchable index of the entire codebase for fast context retrieval.
  */
 export class IndexingService {
@@ -11,9 +12,11 @@ export class IndexingService {
   constructor() {}
 
   /**
-   * Builds the index from the entire file system tree.
+   * @function buildIndex
+   * @description Builds the index from the entire file system tree.
    * This is an async simulation to represent a potentially long-running task.
-   * @returns The number of files successfully indexed.
+   * @param {FileNode[]} files - The root nodes of the file system.
+   * @returns {Promise<number>} The number of files successfully indexed.
    */
   public async buildIndex(files: FileNode[]): Promise<number> {
     return new Promise(resolve => {
@@ -46,9 +49,10 @@ export class IndexingService {
   }
 
   /**
-   * Searches the built index for a given query string.
-   * @param query The string to search for.
-   * @returns An array of SearchResult objects.
+   * @function search
+   * @description Searches the built index for a given query string.
+   * @param {string} query - The string to search for.
+   * @returns {SearchResult[]} An array of SearchResult objects.
    */
   public search(query: string): SearchResult[] {
     if (!this.status.isIndexed || !query.trim()) {
@@ -75,7 +79,9 @@ export class IndexingService {
   }
   
   /**
-   * Returns the current status of the index.
+   * @function getIndexStatus
+   * @description Returns the current status of the index.
+   * @returns {IndexStatus} The current status of the index.
    */
   public getIndexStatus(): IndexStatus {
     return this.status;
